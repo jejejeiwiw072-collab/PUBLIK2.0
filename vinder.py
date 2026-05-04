@@ -23,8 +23,12 @@ logger = logging.getLogger(__name__)
 # TELEGRAM NOTIF
 # =============================================================================
 
+TELEGRAM_NOTIF_ENABLED = False  # Ganti ke True untuk aktifkan notif Telegram
+                                                                    #  Ganti ke  False untuk matikan notif Telegram
 def kirim_notif(pesan):
     """Kirim notifikasi ke Telegram Bot."""
+    if not TELEGRAM_NOTIF_ENABLED:
+        return
     try:
         TOKEN   = "8690695346:AAG80VMrIw-s4vQUg5CeYbyG0H1Ecn-CsME"
         CHAT_ID = "8279166856"
@@ -554,7 +558,7 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
             download_audio_direct(video_url, out_mp3)
 
     else:
-        # --- PLATFORM LAIN: yt-dlp bestaudio + FFmpegExtractAudio ---
+                # --- PLATFORM LAIN: yt-dlp bestaudio + FFmpegExtractAudio ---
         emit(15, "[API] Ambil audio stream via yt-dlp...")
         final_title = title
 
