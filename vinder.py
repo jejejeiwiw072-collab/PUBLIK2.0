@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 # TELEGRAM NOTIF
 # =============================================================================
 
-TELEGRAM_NOTIF_ENABLED = False  # Ganti ke True untuk aktifkan notif Telegram
-                                                                    #  Ganti ke  False untuk matikan notif Telegram
+TELEGRAM_NOTIF_ENABLED = True # Ganti ke True untuk aktifkan notif Telegram                                                                  #  Ganti ke  False untuk matikan notif Telegram
+
 def kirim_notif(pesan):
     """Kirim notifikasi ke Telegram Bot."""
     if not TELEGRAM_NOTIF_ENABLED:
