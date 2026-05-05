@@ -25,25 +25,51 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_NOTIF_ENABLED = True # Ganti ke True untuk aktifkan notif Telegram                                                                  #  Ganti ke  False untuk matikan notif Telegram
 
+
+# =============================================================================
+# FIX #1: Token Telegram dipindah ke environment variable
+# Set di Railway/server: TELEGRAM_TOKEN dan TELEGRAM_CHAT_ID
+# JANGAN hardcode token di source code!
+# =============================================================================
+_TELEGRAM_TOKEN   = os.environ.get("8690695346:AAG80VMrIw-s4vQUg5CeYbyG0H1Ecn-CsME"")
+_TELEGRAM_CHAT_ID = os.environ.get("8279166856")
+
+if TELEGRAM_NOTIF_ENABLED and (not  8690695346:AAG80VMrIw-s4vQUg5CeYbyG0H1Ecn-CsME or not 8279166856):
+    logger.warning(
+        "[NOTIF] TELEGRAM_TOKEN atau TELEGRAM_CHAT_ID tidak ditemukan di env. "
+        "Notif Telegram dinonaktifkan. Set env var untuk mengaktifkan."
+    )
+    TELEGRAM_NOTIF_ENABLED = False
+
 def kirim_notif(pesan):
     """Kirim notifikasi ke Telegram Bot."""
     if not TELEGRAM_NOTIF_ENABLED:
         return
     try:
-        TOKEN   = "8690695346:AAG80VMrIw-s4vQUg5CeYbyG0H1Ecn-CsME"
-        CHAT_ID = "8279166856"
         requests.post(
-            f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": pesan},
+            f"https://api.telegram.org/bot{8690695346:AAG80VMrIw-s4vQUg5CeYbyG0H1Ecn-CsME}/sendMessage",
+            data={"chat_id":8279166856, "text": pesan},
             timeout=3
         )
     except Exception as e:
         logger.warning(f"[NOTIF] Gagal kirim notif Telegram: {e}")
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+app = Flask(__name__, static_folder='static', static_url_path='')
+# FIX #7: static_folder dipindah dari '.' (root) ke folder 'static' tersendiri
+# Sebelumnya semua file di root (termasuk vinder_fixed.py, .env) bisa diakses via URL
+
+# FIX #2: CORS dibatasi ke origin tertentu saja
+# Tambahkan domain produksi lo ke list ini, atau set env var CORS_ORIGINS
+_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:5000,http://127.0.0.1:5000"   # default: hanya local dev
+).split(",")
 
 from flask_cors import CORS
-CORS(app)
+CORS(app, origins=_ALLOWED_ORIGINS)
+# TODO (Rate Limiting): Tambahkan Flask-Limiter di sini
+# from flask_limiter import Limiter
+# limiter = Limiter(app, key_func=get_remote_address, default_limits=["30/minute"])
 
 TIKTOK_UA = (
     "com.zhiliaoapp.musically/2022505030 "
@@ -529,7 +555,7 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
         # --- TIKTOK: extract audio stream URL via yt-dlp, lalu download langsung ---
         emit(15, "[API] Ambil metadata & audio stream URL...")
 
-        # Coba yt-dlp dulu untuk audio stream asli
+             # Coba yt-dlp dulu untuk audio stream asli
         audio_url, cover_url, api_title = get_tiktok_audio_url(url)
         final_title = api_title or title
 
@@ -558,7 +584,7 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
             download_audio_direct(video_url, out_mp3)
 
     else:
-                                # --- PLATFORM LAIN: yt-dlp bestaudio + FFmpegExtractAudio ---
+                # --- PLATFORM LAIN: yt-dlp bestaudio + FFmpegExtractAudio ---
         emit(15, "[API] Ambil audio stream via yt-dlp...")
         final_title = title
 
@@ -671,6 +697,43 @@ def is_supported_url(url):
     return any(p in url for p in SUPPORTED_PLATFORMS)
 
 
+# FIX #3 & #7: Validasi URL untuk mencegah SSRF dan skema berbahaya
+# Blokir: file://, ftp://, http://localhost, http://127.x, http://169.254.x (AWS metadata)
+import ipaddress
+from urllib.parse import urlparse
+
+def is_safe_external_url(url):
+    """
+    Cek apakah URL aman untuk di-fetch oleh server.
+    Return False jika URL mengarah ke resource internal/private.
+    """
+    if not url:
+        return False
+    try:
+        parsed = urlparse(url)
+        # Hanya izinkan http dan https
+        if parsed.scheme not in ('http', 'https'):
+            logger.warning(f"[SSRF] Blokir skema berbahaya: {parsed.scheme}")
+            return False
+        hostname = parsed.hostname or ''
+        # Blokir localhost dan variasi
+        if hostname in ('localhost', ''):
+            logger.warning(f"[SSRF] Blokir hostname: {hostname}")
+            return False
+        # Blokir IP private/loopback/link-local
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                logger.warning(f"[SSRF] Blokir IP internal: {hostname}")
+                return False
+        except ValueError:
+            pass  # bukan IP, hostname biasa - lanjut
+        return True
+    except Exception as e:
+        logger.warning(f"[SSRF] Gagal parse URL: {e}")
+        return False
+
+
 @app.route('/api/download_url', methods=['POST'])
 def download_url_api():
     data      = request.json
@@ -744,6 +807,12 @@ def get_video_api():
     if not video_url:
         return "URL Kosong", 400
 
+    # FIX #3: Cek SSRF - tolak URL internal/berbahaya
+    if not is_safe_external_url(video_url):
+        return "URL tidak valid atau tidak diizinkan.", 400
+    if fallback_url and not is_safe_external_url(fallback_url):
+        fallback_url = None
+
     try:
         r, _ = fetch_video_stream(video_url, fallback_url)
 
@@ -765,7 +834,9 @@ def get_video_api():
         )
 
     except Exception as e:
-        return f"Error: {str(e)}", 500
+        # FIX #6: Jangan kembalikan detail error ke user (mencegah info disclosure)
+        logger.error(f"get_video error: {str(e)}")
+        return "Terjadi kesalahan saat memproses video. Silakan coba lagi.", 500
 
 
 @app.route('/api/mp3_progress')
@@ -781,6 +852,10 @@ def mp3_progress_api():
 
     if not tiktok_url:
         return "URL Kosong", 400
+
+    # FIX #3: Cek SSRF dan platform whitelist
+    if not is_safe_external_url(tiktok_url) or not is_supported_url(tiktok_url):
+        return "URL tidak valid atau platform tidak didukung.", 400
 
     def generate():
         def send(pct, msg):
@@ -822,9 +897,10 @@ def mp3_progress_api():
 
                 q.put(send(100, f"[OK] DONE|{uid}|{fname}"))
             except Exception as e:
+                # FIX #6: Log detail error di server, kirim pesan generik ke client
                 logger.error(f"SSE MP3 Error: {e}")
                 do_cleanup(out_tmpl)
-                q.put(send(-1, f"[ERR] Error: {str(e)[:100]}"))
+                q.put(send(-1, "[ERR] Terjadi kesalahan saat memproses audio."))
             finally:
                 q.put(None)  # sentinel = selesai
 
@@ -854,9 +930,11 @@ def mp3_progress_api():
 @app.route('/api/get_mp3_file')
 def get_mp3_file_api():
     """Ambil file MP3 yang sudah selesai diproses via SSE."""
-    uid = request.args.get('uid')
-    if not uid:
-        return "UID kosong", 400
+    uid = request.args.get('uid', '')
+    # FIX #5: Validasi uid hanya boleh angka (timestamp milidetik)
+    # Cegah path traversal seperti uid='../etc/passwd'
+    if not uid or not uid.isdigit() or len(uid) > 20:
+        return "UID tidak valid", 400
 
     out_tmpl  = f'/tmp/vinder_{uid}'
     out_mp3   = out_tmpl + '.mp3'
@@ -897,6 +975,10 @@ def get_mp3_api():
     if not tiktok_url:
         return "URL Kosong", 400
 
+    # FIX #3: Cek SSRF sebelum fetch
+    if not is_safe_external_url(tiktok_url) or not is_supported_url(tiktok_url):
+        return "URL tidak valid atau platform tidak didukung.", 400
+
     if 'vt.tiktok.com' in tiktok_url or 'vm.tiktok.com' in tiktok_url:
         tiktok_url = resolve_tiktok_url(tiktok_url)
 
@@ -934,9 +1016,10 @@ def get_mp3_api():
         )
 
     except Exception as e:
+        # FIX #6: Sembunyikan detail error dari user
         logger.error(f"MP3 Error: {str(e)}")
         do_cleanup(out_tmpl)
-        return f"Error: {str(e)}", 500
+        return "Terjadi kesalahan saat memproses audio. Silakan coba lagi.", 500
 
 
 
@@ -966,6 +1049,10 @@ def fast_mp3_api():
 
     if not tiktok_url:
         return "URL Kosong", 400
+
+    # FIX #3: Cek SSRF dan platform whitelist sebelum fetch apapun
+    if not is_safe_external_url(tiktok_url) or not is_supported_url(tiktok_url):
+        return "URL tidak valid atau platform tidak didukung.", 400
 
     is_short = 'vt.tiktok.com' in tiktok_url or 'vm.tiktok.com' in tiktok_url
     is_tiktok = is_short or 'tiktok.com' in tiktok_url
@@ -1008,7 +1095,7 @@ def fast_mp3_api():
 
         # OPTIMASI 3: Cover dari frame tengah - 1 ffmpeg command, no ffprobe
         # -sseof -0.5 = seek ke 50% dari akhir (efektif = tengah untuk video pendek)
-        # Lebih akurat: pakai -ss 50% tapi ffmpeg support ini via metadata
+                # Lebih akurat: pakai -ss 50% tapi ffmpeg support ini via metadata
         # Trick: seek ke posisi relatif dengan -ss dan total duration dari header
         cover_raw  = [None]
         cover_done = threading.Event()
@@ -1073,7 +1160,10 @@ def fast_mp3_api():
         if r.status_code >= 400:
             return f"Gagal: CDN return {r.status_code}", 502
 
-        tmp_mp3 = tempfile.mktemp(suffix='.mp3')
+        # FIX #8: Ganti mktemp() yang deprecated dan tidak aman (race condition)
+        # mkstemp() langsung buat file + return file descriptor, aman dari race condition
+        _fd, tmp_mp3 = tempfile.mkstemp(suffix='.mp3')
+        os.close(_fd)  # tutup fd, ffmpeg akan buka file-nya sendiri
 
         proc = subprocess.Popen(
             ['ffmpeg', '-y', '-i', 'pipe:0', '-vn',
@@ -1101,7 +1191,7 @@ def fast_mp3_api():
         # Tunggu cover (max 3 detik — audio encode biasanya lebih lama)
         cover_done.wait(timeout=3)
 
-                # ── Embed cover via mutagen ──
+        # ── Embed cover via mutagen ──
         if cover_raw[0]:
             try:
                 from mutagen.id3 import ID3, APIC, error as ID3Error
@@ -1148,8 +1238,9 @@ def fast_mp3_api():
         )
 
     except Exception as e:
+        # FIX #6: Sembunyikan detail error dari user
         logger.error(f"fast_mp3 error: {e}")
-        return f"Error: {str(e)}", 500
+        return "Terjadi kesalahan saat memproses audio. Silakan coba lagi.", 500
 
 # =============================================================================
 # MAIN
