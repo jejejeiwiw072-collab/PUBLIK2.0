@@ -31,8 +31,8 @@ TELEGRAM_NOTIF_ENABLED = True # Ganti ke True untuk aktifkan notif Telegram     
 # Set di Railway/server: TELEGRAM_TOKEN dan TELEGRAM_CHAT_ID
 # JANGAN hardcode token di source code!
 # =============================================================================
-_TELEGRAM_TOKEN   = os.environ.get("8690695346:AAG80VMrIw-s4vQUg5CeYbyG0H1Ecn-CsME"")
-_TELEGRAM_CHAT_ID = os.environ.get("8279166856")
+_TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN")
+_TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 if TELEGRAM_NOTIF_ENABLED and (not  8690695346:AAG80VMrIw-s4vQUg5CeYbyG0H1Ecn-CsME or not 8279166856):
     logger.warning(
@@ -552,10 +552,10 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
     is_tiktok = any(x in url for x in ['tiktok.com', 'vt.tiktok.com', 'vm.tiktok.com'])
 
     if is_tiktok:
-        # --- TIKTOK: extract audio stream URL via yt-dlp, lalu download langsung ---
+               # --- TIKTOK: extract audio stream URL via yt-dlp, lalu download langsung ---
         emit(15, "[API] Ambil metadata & audio stream URL...")
 
-             # Coba yt-dlp dulu untuk audio stream asli
+        # Coba yt-dlp dulu untuk audio stream asli
         audio_url, cover_url, api_title = get_tiktok_audio_url(url)
         final_title = api_title or title
 
@@ -1095,7 +1095,7 @@ def fast_mp3_api():
 
         # OPTIMASI 3: Cover dari frame tengah - 1 ffmpeg command, no ffprobe
         # -sseof -0.5 = seek ke 50% dari akhir (efektif = tengah untuk video pendek)
-                # Lebih akurat: pakai -ss 50% tapi ffmpeg support ini via metadata
+               # Lebih akurat: pakai -ss 50% tapi ffmpeg support ini via metadata
         # Trick: seek ke posisi relatif dengan -ss dan total duration dari header
         cover_raw  = [None]
         cover_done = threading.Event()
