@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-        .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+               .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .upload-preview button {
       width: auto;
@@ -1109,6 +1109,14 @@ Spotify secara cepat dan aman.</div>
             <div class="donate-opt-desc">Traktir kopi lewat Saweria</div>
           </div>
           <span class="donate-opt-arrow">›</span>
+        </a>
+        <a class="donate-option" href="https://saweria.co/ZakdevComunity" target="_blank">
+          <div class="donate-opt-icon" style="background:#1a0808;">❤️</div>
+          <div class="donate-opt-info">
+            <div class="donate-opt-name">Trakteer</div>
+            <div class="donate-opt-desc">Support via Trakteer</div>
+          </div>
+       <span class="donate-opt-arrow">›</span>
         </a>
         <a class="donate-option" href="https://saweria.co/ZakdevComunity" target="_blank">
           <div class="donate-opt-icon" style="background:#1a0808;">❤️</div>
@@ -1626,6 +1634,252 @@ Spotify secara cepat dan aman.</div>
     url.searchParams.set('refresh', Date.now());
     window.location.replace(url.toString());
   }
+
+  /* ============================================================
+   * VINDER GUARD — 5 Lapisan Perlindungan
+   * ============================================================ */
+  const VinderGuard = (() => {
+
+    // ── LAPISAN 5: Registry semua resource yang perlu di-cleanup ──
+    const _objectUrls   = new Set();   // blob URL yang dibuat
+    const _listeners    = [];          // {el, type, fn} untuk dilepas
+    const _timers       = new Set();   // setInterval ID
+
+    function trackObjectUrl(url) {
+      _objectUrls.add(url);
+      return url;
+    }
+
+    function revokeAll() {
+      _objectUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch(_){} });
+      _objectUrls.clear();
+    }
+
+    function addListener(el, type, fn, opts) {
+      el.addEventListener(type, fn, opts);
+      _listeners.push({ el, type, fn, opts });
+    }
+
+    function removeAllListeners() {
+      _listeners.forEach(({ el, type, fn, opts }) => {
+        try { el.removeEventListener(type, fn, opts); } catch(_){}
+      });
+      _listeners.length = 0;
+    }
+
+    // ── Cleanup satu sesi download ──
+    function cleanupSession() {
+      revokeAll();
+    }
+
+    // ── LAPISAN 5: Cleanup berkala setiap 5 menit ──
+    const periodicId = setInterval(() => {
+      revokeAll();
+      // Hapus bubble download yang sudah fade-out tapi masih di DOM
+      document.querySelectorAll('.dl-bubble.fade-out').forEach(el => {
+        try { el.remove(); } catch(_){}
+      });
+    }, 5 * 60 * 1000);
+    _timers.add(periodicId);
+
+    // ── LAPISAN 5: Cleanup saat tab ditutup / pindah halaman ──
+    window.addEventListener('beforeunload', () => {
+      clearInterval(periodicId);
+      revokeAll();
+      removeAllListeners();
+    });
+
+    // ── LAPISAN 3: Lock tombol download ──
+    const _locks = new Map(); // btnId -> true/false
+
+    function lockBtn(btn) {
+      if (!btn) return false;
+      const id = btn.id || btn.dataset.vid || Math.random();
+      if (_locks.get(id)) return false; // sudah terkunci
+      _locks.set(id, true);
+      btn.disabled = true;
+      btn._origText = btn.textContent;
+      btn.textContent = '⏳ Memproses...';
+      return true;
+    }
+
+    function unlockBtn(btn) {
+      if (!btn) return;
+      const id = btn.id || btn.dataset.vid || '';
+      _locks.delete(id);
+      btn.disabled = false;
+      if (btn._origText) btn.textContent = btn._origText;
+    }
+
+    // ── LAPISAN 1: Validasi response sebelum download ──
+    function isValidMediaBlob(blob) {
+      const bad = ['text/html', 'application/json', 'text/plain'];
+      return blob && blob.size > 10240 && !bad.some(t => blob.type.includes(t));
+    }
+
+    function isValidMediaUrl(url) {
+      // Tolak jika URL mengarah ke file HTML atau tidak ada ekstensi media
+      const lower = url.toLowerCase();
+      if (lower.includes('.html') || lower.includes('.htm')) return false;
+      return true;
+    }
+
+    // ── LAPISAN 2: Fetch dengan retry otomatis ──
+    async function fetchWithRetry(url, opts = {}, maxRetry = 3) {
+      let lastErr;
+      for (let i = 0; i < maxRetry; i++) {
+        try {
+          const resp = await fetch(url, opts);
+          // Cek content-type dari header response
+          const ct = resp.headers.get('content-type') || '';
+          if (ct.includes('text/html') || ct.includes('application/json')) {
+            throw new Error('Server mengembalikan format tidak valid (' + ct + ')');
+          }
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          return resp;
+        } catch (e) {
+          lastErr = e;
+          if (i < maxRetry - 1) {
+            await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+          }
+        }
+      }
+      throw lastErr;
+    }
+
+    // ── LAPISAN 4: Pesan error ramah ──
+    const ERROR_MAP = {
+      '403': '❌ Video tidak bisa diakses (mungkin privat atau region-locked)',
+      '404': '❌ Video tidak ditemukan — link mungkin sudah expired',
+      '429': '❌ Terlalu banyak request, tunggu sebentar lalu coba lagi',
+      '500': '❌ Server sedang bermasalah, coba lagi dalam 1-2 menit',
+      '502': '❌ Server video tidak merespons, coba lagi',
+      'html': '❌ Video gagal diambil — coba lagi atau ganti kualitas',
+      'network': '❌ Koneksi bermasalah, pastikan internet stabil lalu coba lagi',
+      'timeout': '❌ Proses terlalu lama, coba lagi',
+      'default': '❌ Gagal download, coba lagi dalam beberapa detik',
+    };
+
+    function friendlyError(err) {
+      const msg = (err && err.message) ? err.message : String(err);
+      for (const [key, val] of Object.entries(ERROR_MAP)) {
+        if (msg.includes(key)) return val;
+      }
+      return ERROR_MAP.default;
+    }
+
+    // ── API publik ──
+    return {
+      trackObjectUrl,
+      cleanupSession,
+      lockBtn,
+      unlockBtn,
+      isValidMediaBlob,
+      isValidMediaUrl,
+      fetchWithRetry,
+      friendlyError,
+    };
+  })();
+
+  /* ============================================================
+   * PATCH: handleRealDownload — pakai VinderGuard
+   * ============================================================ */
+  const _origHandleRealDownload = handleRealDownload;
+  window.handleRealDownload = function(dUrl, title) {
+    // Lapisan 1: validasi URL
+    if (!VinderGuard.isValidMediaUrl(dUrl)) {
+      const bubble = createBubble(title, false);
+      bubble.setError('❌ URL tidak valid — coba lagi atau ganti kualitas');
+      return;
+    }
+    const bubble = createBubble(title, false);
+    try {
+      const a = document.createElement('a');
+      a.href = dUrl;
+      a.target = '_blank';
+      const ext = selectedFormat === 'mp3' ? '.mp3' : '.mp4';
+      a.download = title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + ext;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => { bubble.updateProgress(100); bubble.setSuccess(); VinderGuard.cleanupSession(); }, 1500);
+    } catch (e) {
+      bubble.setError(VinderGuard.friendlyError(e));
+    }
+  };
+
+  /* ============================================================
+   * PATCH: startMp3Background — pakai VinderGuard
+   * ============================================================ */
+  window.startMp3Background = async function(url, title) {
+    const bubble = createBubble(title, true);
+    const filename = '[Vinder].' + title.replace(/[\/:\*?"<>|]/g, '').replace(/[#@]\S*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) + '.mp3';
+
+    try {
+      // Lapisan 2: fetch dengan retry
+      const resp = await VinderGuard.fetchWithRetry('/api/fast_mp3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, title }),
+      });
+
+      const blob = await resp.blob();
+
+      // Lapisan 1: validasi blob
+      if (!VinderGuard.isValidMediaBlob(blob)) {
+        bubble.setError('❌ File yang diterima tidak valid — coba lagi');
+        return;
+      }
+
+      const objUrl = VinderGuard.trackObjectUrl(URL.createObjectURL(blob));
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      bubble.setSuccess();
+
+      // Lapisan 5: cleanup setelah selesai
+      setTimeout(() => VinderGuard.cleanupSession(), 5000);
+
+    } catch (e) {
+      console.error('[MP3] Download error:', e);
+      // Lapisan 4: pesan error ramah
+      bubble.setError(VinderGuard.friendlyError(e));
+    }
+  };
+
+  /* ============================================================
+   * PATCH: handleSearchDownload — proteksi double klik (Lapisan 3)
+   * ============================================================ */
+  const _origHandleSearchDownload = handleSearchDownload;
+  window.handleSearchDownload = function(btnEl, encHdplay, encTitle, encPlay) {
+    // Lapisan 3: lock tombol
+    if (!VinderGuard.lockBtn(btnEl)) return;
+    try {
+      _origHandleSearchDownload(btnEl, encHdplay, encTitle, encPlay);
+    } finally {
+      // Unlock setelah 3 detik (cukup untuk cegah double klik)
+      setTimeout(() => VinderGuard.unlockBtn(btnEl), 3000);
+    }
+  };
+
+  /* ============================================================
+   * PATCH: doDownloadUrl — proteksi double klik (Lapisan 3)
+   * ============================================================ */
+  const _origDoDownloadUrl = doDownloadUrl;
+  window.doDownloadUrl = async function() {
+    const btn = document.getElementById('btn-dlurl');
+    if (!VinderGuard.lockBtn(btn)) return;
+    try {
+      await _origDoDownloadUrl();
+    } finally {
+      VinderGuard.unlockBtn(btn);
+    }
+  };
+
   </script>
 </body>
 </html>
