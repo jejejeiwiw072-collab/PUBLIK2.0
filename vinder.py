@@ -47,7 +47,7 @@ def kirim_notif(pesan):
         return
     try:
         requests.post(
-            f"https://api.telegram.org/bot{8690695346:AAG80VMrIw-s4vQUg5CeYbyG0H1Ecn-CsME}/sendMessage",
+            f"https://api.telegram.org/bot{_TELEGRAM_TOKEN}/sendMessage",
             data={"chat_id":8279166856, "text": pesan},
             timeout=3
         )
