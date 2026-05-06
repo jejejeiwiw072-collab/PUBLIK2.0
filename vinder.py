@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             timeout=15,
         )
 
-             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1101,7 +1101,7 @@ def get_mp3_api():
         filename = f"[Vinder].{safe_filename(final_title)}.mp3"
         logger.info(f"[OK] Siap dikirim: {filename}")
 
-             # Kirim file dengan Content-Disposition RFC 5987 (aman untuk emoji/unicode)
+              # Kirim file dengan Content-Disposition RFC 5987 (aman untuk emoji/unicode)
         def generate_mp3():
             with open(out_mp3, 'rb') as audio_f:
                 while True:
@@ -1166,6 +1166,7 @@ def fast_mp3_api():
     try:
         audio_url   = None
         video_url   = None
+        cover_url   = None
         final_title = title
 
         if is_tiktok:
@@ -1199,64 +1200,7 @@ def fast_mp3_api():
         if not audio_url:
             return "Gagal mengambil audio, silakan coba lagi.", 500
 
-             # OPTIMASI 3: Cover dari frame tengah - 1 ffmpeg command, no ffprobe
-        # -sseof -0.5 = seek ke 50% dari akhir (efektif = tengah untuk video pendek)
-        # Lebih akurat: pakai -ss 50% tapi ffmpeg support ini via metadata
-        # Trick: seek ke posisi relatif dengan -ss dan total duration dari header
-        cover_raw  = [None]
-        cover_done = threading.Event()
 
-        def extract_cover_fast():
-            """Extract frame tengah video - 1 subprocess, no ffprobe."""
-            src = video_url or audio_url
-            try:
-                # Trick: ffmpeg baca sedikit header dulu untuk durasi
-                # lalu seek ke tengah - semua dalam 1 command
-                # -sseof -N seek dari akhir N detik (kita pakai durasi/2 = seek dari akhir durasi/2)
-                # Karena kita ga tau durasi, pakai pendekatan: seek ke 5 detik dulu,
-                # jika gagal fallback ke detik 1
-                frame_proc = subprocess.run(
-                    [
-                        'ffmpeg', '-y',
-                        '-ss', '00:00:05',       # seek ke detik 5 (tengah video ~10 detik)
-                        '-i', src,
-                        '-vframes', '1',
-                        '-vf', 'crop=min(iw\\,ih):min(iw\\,ih),scale=500:500',
-                        '-f', 'image2',
-                        '-vcodec', 'mjpeg',
-                        'pipe:1',
-                    ],
-                    capture_output=True, timeout=12,
-                )
-                if frame_proc.returncode == 0 and len(frame_proc.stdout) > 500:
-                    cover_raw[0] = frame_proc.stdout
-                    logger.info(f"[IMG] Frame cover OK ({len(cover_raw[0])//1024}KB)")
-                else:
-                    # Fallback: detik 1 (video sangat pendek < 5 detik)
-                    frame_proc2 = subprocess.run(
-                        [
-                            'ffmpeg', '-y',
-                            '-ss', '00:00:01',
-                            '-i', src,
-                            '-vframes', '1',
-                            '-vf', 'crop=min(iw\\,ih):min(iw\\,ih),scale=500:500',
-                            '-f', 'image2', '-vcodec', 'mjpeg', 'pipe:1',
-                        ],
-                        capture_output=True, timeout=10,
-                    )
-                    if frame_proc2.returncode == 0 and len(frame_proc2.stdout) > 500:
-                        cover_raw[0] = frame_proc2.stdout
-                        logger.info(f"[IMG] Frame fallback OK ({len(cover_raw[0])//1024}KB)")
-                    else:
-                        logger.warning("[WARN] Frame extract gagal semua")
-            except Exception as e:
-                logger.warning(f"[WARN] Cover error: {e}")
-            finally:
-                cover_done.set()
-
-        # OPTIMASI 4: cover + audio paralel
-        cover_thread = threading.Thread(target=extract_cover_fast, daemon=True)
-        cover_thread.start()
 
         # ── Encode audio via ffmpeg pipe ──
         audio_headers = TIKTOK_HEADERS.copy()
@@ -1294,26 +1238,17 @@ def fast_mp3_api():
             err = proc.stderr.read().decode(errors='ignore')[-300:]
             raise RuntimeError("Gagal memproses audio, silakan coba lagi.")
 
-        # Tunggu cover (max 3 detik — audio encode biasanya lebih lama)
-        cover_done.wait(timeout=3)
-
-        # ── Embed cover via mutagen ──
-        if cover_raw[0]:
+        # ── Embed cover dari TikWM origin_cover (tanpa watermark) ──
+        if cover_url:
+            import tempfile as _tmpmod
+            _cover_fd, _cover_path = _tmpmod.mkstemp(suffix='_cover.jpg')
+            os.close(_cover_fd)
+            if download_cover(cover_url, _cover_path):
+                embed_cover(tmp_mp3, _cover_path)
             try:
-                from mutagen.id3 import ID3, APIC, error as ID3Error
-                try:
-                    tags = ID3(tmp_mp3)
-                except ID3Error:
-                    tags = ID3()
-                tags.add(APIC(
-                    encoding=3, mime='image/jpeg',
-                    type=3, desc='Cover',
-                    data=cover_raw[0],
-                ))
-                tags.save(tmp_mp3, v2_version=3)
-                logger.info(f"[IMG] Cover embed OK ({len(cover_raw[0])//1024}KB)")
-            except Exception as e:
-                logger.warning(f"[WARN] Cover embed gagal: {e}")
+                os.remove(_cover_path)
+            except Exception:
+                pass
 
         # ── Stream MP3 ke browser ──
         filename  = f"[Vinder].{safe_filename(final_title)}.mp3"
