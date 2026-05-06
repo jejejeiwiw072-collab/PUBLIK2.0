@@ -521,15 +521,18 @@ def download_audio_ytdlp(url, out_mp3):
 
 
 def download_cover(cover_url, cover_path):
-    """Download thumbnail dari TikWM sebagai cover art."""
+    """Download thumbnail sebagai cover art."""
     try:
         cr = session.get(cover_url, timeout=15)
         cr.raise_for_status()
-        if len(cr.content) > 1000:
+        size = len(cr.content)
+        if size > 1000:
             with open(cover_path, 'wb') as f:
                 f.write(cr.content)
-            logger.info("[IMG] Cover berhasil didownload dari TikWM")
+            logger.info(f"[IMG] Cover berhasil didownload ({size//1024}KB)")
             return True
+        else:
+            logger.warning(f"[WARN] Cover terlalu kecil ({size} bytes), skip")
     except Exception as e:
         logger.warning(f"[WARN] Gagal download cover: {e}")
     return False
@@ -538,56 +541,39 @@ def download_cover(cover_url, cover_path):
 def embed_cover(mp3_path, cover_path):
     """
     Embed cover art ke file MP3 via mutagen (ID3 APIC tag langsung).
-    - Resize cover ke 500x500 JPEG via ffmpeg
-    - Embed sebagai ID3 APIC frame (pure JPEG still, bukan video stream)
-    - Output tetap MP3 container beneran, bukan MP4 nyamar
+    Langsung embed raw JPEG tanpa resize — lebih cepat dan tidak ada
+    kemungkinan gagal karena ffmpeg subprocess.
     """
-    thumb_path = cover_path + '.thumb.jpg'
     try:
-        # Step 1: resize cover ke 500x500 JPEG via ffmpeg
-        subprocess.run(
-            [
-                'ffmpeg', '-y',
-                '-i', cover_path,
-                '-vf', 'scale=500:500:force_original_aspect_ratio=decrease,pad=500:500:(ow-iw)/2:(oh-ih)/2',
-                '-q:v', '6',
-                thumb_path,
-            ],
-            check=True,
-            capture_output=True,
-            timeout=15,
-        )
-
-                # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
-        # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
-        with open(thumb_path, 'rb') as img_f:
+        with open(cover_path, 'rb') as img_f:
             img_data = img_f.read()
+
+        if len(img_data) < 100:
+            logger.warning("[WARN] Cover embed dibatalkan: file gambar terlalu kecil")
+            return
 
         try:
             tags = ID3(mp3_path)
         except ID3Error:
             tags = ID3()
 
+               # Hapus cover lama kalau ada, biar tidak double
+        tags.delall('APIC')
+
         tags.add(APIC(
-            encoding=3,          # UTF-8
+            encoding=3,        # UTF-8
             mime='image/jpeg',
-            type=3,              # Cover (front)
+            type=3,            # Cover (front)
             desc='Cover',
             data=img_data,
         ))
         tags.save(mp3_path, v2_version=3)
-        logger.info(f"[IMG] Cover art di-embed via ID3 APIC ({len(img_data)//1024}KB)")
+        logger.info(f"[IMG] Cover art di-embed ({len(img_data)//1024}KB)")
 
     except Exception as e:
         logger.warning(f"[WARN] Cover embed gagal (tidak fatal): {e}")
-    finally:
-        if os.path.exists(thumb_path):
-            try:
-                os.remove(thumb_path)
-            except Exception:
-                pass
 
 
 def get_tiktok_audio_url(tiktok_url):
