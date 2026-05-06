@@ -1,1 +1,1 @@
-web: gunicorn --worker-class gevent --workers 1 --timeout 120 vinder:app
+web: gunicorn -w 1 -k gevent --worker-connections 100 vinder:app
