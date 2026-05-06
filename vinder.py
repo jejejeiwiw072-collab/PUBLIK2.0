@@ -652,29 +652,32 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
         # --- TIKTOK: extract audio stream URL via yt-dlp, lalu download langsung ---
         emit(15, "Mengambil informasi video...")
 
-            # Coba yt-dlp dulu untuk audio stream asli
-        audio_url, cover_url, api_title = get_tiktok_audio_url(url)
+            # Ambil audio stream via yt-dlp
+        audio_url, ydlp_cover, api_title = get_tiktok_audio_url(url)
         final_title = api_title or title
 
-        # Fallback ke TikWM untuk cover art kalau yt-dlp berhasil
-        if not cover_url:
-            _, cover_url_tikwm, tikwm_title = get_meta_via_tikwm(url)
-            cover_url  = cover_url_tikwm
-            if not final_title or final_title == 'audio':
-                final_title = tikwm_title or title
+        # Cover: Prioritas 1 → origin_cover TikWM (paling bersih)
+        _, tikwm_cover, tikwm_title = get_meta_via_tikwm(url)
+        if tikwm_cover:
+            cover_url = tikwm_cover
+            logger.info("[IMG] Cover: pakai origin_cover TikWM")
+        elif ydlp_cover:
+            # Prioritas 2 → thumbnail yt-dlp
+            cover_url = ydlp_cover
+            logger.info("[IMG] Cover: fallback ke thumbnail yt-dlp")
+        else:
+            cover_url = None
+            logger.info("[IMG] Cover: semua sumber gagal, skip embed")
+
+        if not final_title or final_title == 'audio':
+            final_title = tikwm_title or title
 
         if audio_url:
             emit(30, "Mengunduh audio...")
             download_audio_direct(audio_url, out_mp3)
         else:
-            # Terakhir: fallback ke TikWM video URL + extract audio
-            # for_audio=True -> ambil play/SD bukan hdplay, audio track identik tapi stream lebih ringan
             emit(20, "Memproses video...")
-            video_url, cover_url2, tikwm_title = get_meta_via_tikwm(url, for_audio=True)
-            if not cover_url:
-                cover_url = cover_url2
-            if not final_title or final_title == 'audio':
-                final_title = tikwm_title or title
+            video_url, _, _ = get_meta_via_tikwm(url, for_audio=True)
             if not video_url:
                 raise RuntimeError("Gagal mengambil video, silakan coba lagi.")
             emit(35, "Mengunduh audio...")
@@ -1101,7 +1104,7 @@ def get_mp3_api():
         filename = f"[Vinder].{safe_filename(final_title)}.mp3"
         logger.info(f"[OK] Siap dikirim: {filename}")
 
-              # Kirim file dengan Content-Disposition RFC 5987 (aman untuk emoji/unicode)
+        # Kirim file dengan Content-Disposition RFC 5987 (aman untuk emoji/unicode)
         def generate_mp3():
             with open(out_mp3, 'rb') as audio_f:
                 while True:
@@ -1176,10 +1179,26 @@ def fast_mp3_api():
 
             # Selalu fetch langsung ke TikWM - tanpa cache
             logger.info(f"[FETCH] Ambil metadata video: {mask_url(tiktok_url)}")
-            vid_url, _, tikwm_title = get_meta_via_tikwm(tiktok_url, for_audio=True)
+            vid_url, tikwm_cover, tikwm_title = get_meta_via_tikwm(tiktok_url, for_audio=True)
             video_url   = vid_url
             audio_url   = vid_url
             final_title = tikwm_title or title
+
+            # Prioritas 1: origin_cover TikWM (bersih, tanpa watermark)
+            if tikwm_cover:
+                cover_url = tikwm_cover
+                logger.info("[IMG] Cover: pakai origin_cover TikWM")
+            else:
+                # Prioritas 2: thumbnail dari yt-dlp (juga bersih)
+                try:
+                    with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True, 'noplaylist': True}) as ydl:
+                        info_ydl = ydl.extract_info(tiktok_url, download=False)
+                        cover_url = info_ydl.get('thumbnail')
+                        if cover_url:
+                            logger.info("[IMG] Cover: fallback ke thumbnail yt-dlp")
+                except Exception:
+                    cover_url = None
+                    logger.info("[IMG] Cover: semua sumber gagal, skip embed")
 
         else:
             # Non-TikTok: tetap pakai yt-dlp
@@ -1196,6 +1215,7 @@ def fast_mp3_api():
                 audio_url   = info.get('url')
                 video_url   = info.get('url')
                 final_title = info.get('title', title)
+                cover_url   = info.get('thumbnail')  # thumbnail bersih tanpa watermark
 
         if not audio_url:
             return "Gagal mengambil audio, silakan coba lagi.", 500
