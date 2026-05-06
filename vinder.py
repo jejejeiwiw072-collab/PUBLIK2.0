@@ -48,7 +48,7 @@ def kirim_notif(pesan):
     try:
         requests.post(
             f"https://api.telegram.org/bot{_TELEGRAM_TOKEN}/sendMessage",
-            data={"chat_id":8279166856, "text": pesan},
+            data={"chat_id": _TELEGRAM_CHAT_ID, "text": pesan},
             timeout=3
         )
     except Exception as e:
@@ -67,9 +67,38 @@ _ALLOWED_ORIGINS = os.environ.get(
 
 from flask_cors import CORS
 CORS(app, origins=_ALLOWED_ORIGINS)
-# TODO (Rate Limiting): Tambahkan Flask-Limiter di sini
-# from flask_limiter import Limiter
-# limiter = Limiter(app, key_func=get_remote_address, default_limits=["30/minute"])
+
+# =============================================================================
+# RATE LIMITING
+# =============================================================================
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=[],
+    storage_uri="memory://",
+)
+
+def on_rate_limit_exceeded(e):
+    ip   = get_remote_address()
+    path = request.path
+    batas_map = {
+        '/api/search':       '10x/menit',
+        '/api/download_url': '20x/menit',
+        '/api/fast_mp3':     '15x/menit',
+    }
+    batas = batas_map.get(path, 'batas limit')
+    kirim_notif(
+        f"⚠️ Rate Limit Terlampaui!\n"
+        f"User IP: {ip}\n"
+        f"Endpoint: {path}\n"
+        f"Melebihi batas {batas}"
+    )
+    return "Terlalu banyak permintaan. Silakan tunggu sebentar.", 429
+
+app.register_error_handler(429, on_rate_limit_exceeded)
 
 TIKTOK_UA = (
     "com.zhiliaoapp.musically/2022505030 "
@@ -616,11 +645,14 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
 
 @app.route('/')
 def index():
-    kirim_notif("Visitor masuk ke Web Vinder")
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'Unknown').split(',')[0].strip()
+    kirim_notif(f"🌐 Visitor masuk!
+IP: {ip}")
     return send_file('vinder.html')
 
 
 @app.route('/api/search', methods=['POST'])
+@limiter.limit('10 per minute')
 def search_videos_api():
     data       = request.json
     keyword    = data.get('keyword')
@@ -694,7 +726,12 @@ SUPPORTED_PLATFORMS = [
 def is_supported_url(url):
     if not url:
         return False
-    return any(p in url for p in SUPPORTED_PLATFORMS)
+    try:
+        netloc = urlparse(url).netloc.lower()
+        netloc = netloc.split(":")[0]  # hapus port kalau ada
+        return any(netloc == p or netloc.endswith("." + p) for p in SUPPORTED_PLATFORMS)
+    except Exception:
+        return False
 
 
 # FIX #3 & #7: Validasi URL untuk mencegah SSRF dan skema berbahaya
@@ -735,6 +772,7 @@ def is_safe_external_url(url):
 
 
 @app.route('/api/download_url', methods=['POST'])
+@limiter.limit('20 per minute')
 def download_url_api():
     data      = request.json
     url_input = data.get('url', '').strip()
@@ -1025,6 +1063,7 @@ def get_mp3_api():
 
 
 @app.route('/api/fast_mp3', methods=['GET', 'POST'])
+@limiter.limit('15 per minute')
 def fast_mp3_api():
     """
     FAST MP3 - El Kedips Edition (Maximum Speed)
@@ -1067,7 +1106,7 @@ def fast_mp3_api():
             if is_short:
                 tiktok_url = resolve_tiktok_url(tiktok_url)
 
-            # Selalu fetch langsung ke TikWM - tanpa cache
+           # Selalu fetch langsung ke TikWM - tanpa cache
             logger.info(f"[FETCH] Fresh fetch TikWM untuk: {tiktok_url[-40:]}")
             vid_url, _, tikwm_title = get_meta_via_tikwm(tiktok_url, for_audio=True)
             video_url   = vid_url
