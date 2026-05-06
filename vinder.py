@@ -563,6 +563,7 @@ def get_tiktok_audio_url(tiktok_url):
         return None, None, None
 
 
+
 def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
     """
     Pipeline MP3 LANGSUNG AUDIO - tidak download video, langsung ambil audio stream.
@@ -646,8 +647,7 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
 @app.route('/')
 def index():
     ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'Unknown').split(',')[0].strip()
-    kirim_notif(f"🌐 Visitor masuk!
-IP: {ip}")
+    kirim_notif(f"🌐 Visitor masuk!\nIP: {ip}")
     return send_file('vinder.html')
 
 
@@ -1106,7 +1106,7 @@ def fast_mp3_api():
             if is_short:
                 tiktok_url = resolve_tiktok_url(tiktok_url)
 
-           # Selalu fetch langsung ke TikWM - tanpa cache
+                      # Selalu fetch langsung ke TikWM - tanpa cache
             logger.info(f"[FETCH] Fresh fetch TikWM untuk: {tiktok_url[-40:]}")
             vid_url, _, tikwm_title = get_meta_via_tikwm(tiktok_url, for_audio=True)
             video_url   = vid_url
