@@ -139,6 +139,16 @@ TIKTOK_HEADERS = {
 
 session = requests.Session()
 
+# =============================================================================
+# PRE-FETCHING CONNECTION POOL
+# Perbesar pool koneksi agar request paralel ke TikWM/CDN tidak ngantre
+# Default requests: pool_connections=10, pool_maxsize=10
+# =============================================================================
+from requests.adapters import HTTPAdapter
+_adapter = HTTPAdapter(pool_connections=20, pool_maxsize=50)
+session.mount('https://', _adapter)
+session.mount('http://',  _adapter)
+
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -548,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             timeout=15,
         )
 
-        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1091,7 +1101,7 @@ def get_mp3_api():
         filename = f"[Vinder].{safe_filename(final_title)}.mp3"
         logger.info(f"[OK] Siap dikirim: {filename}")
 
-        # Kirim file dengan Content-Disposition RFC 5987 (aman untuk emoji/unicode)
+             # Kirim file dengan Content-Disposition RFC 5987 (aman untuk emoji/unicode)
         def generate_mp3():
             with open(out_mp3, 'rb') as audio_f:
                 while True:
