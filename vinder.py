@@ -521,18 +521,15 @@ def download_audio_ytdlp(url, out_mp3):
 
 
 def download_cover(cover_url, cover_path):
-    """Download thumbnail sebagai cover art."""
+    """Download thumbnail dari TikWM sebagai cover art."""
     try:
         cr = session.get(cover_url, timeout=15)
         cr.raise_for_status()
-        size = len(cr.content)
-        if size > 1000:
+        if len(cr.content) > 1000:
             with open(cover_path, 'wb') as f:
                 f.write(cr.content)
-            logger.info(f"[IMG] Cover berhasil didownload ({size//1024}KB)")
+            logger.info("[IMG] Cover berhasil didownload dari TikWM")
             return True
-        else:
-            logger.warning(f"[WARN] Cover terlalu kecil ({size} bytes), skip")
     except Exception as e:
         logger.warning(f"[WARN] Gagal download cover: {e}")
     return False
@@ -541,39 +538,56 @@ def download_cover(cover_url, cover_path):
 def embed_cover(mp3_path, cover_path):
     """
     Embed cover art ke file MP3 via mutagen (ID3 APIC tag langsung).
-    Langsung embed raw JPEG tanpa resize — lebih cepat dan tidak ada
-    kemungkinan gagal karena ffmpeg subprocess.
+    - Resize cover ke 500x500 JPEG via ffmpeg
+    - Embed sebagai ID3 APIC frame (pure JPEG still, bukan video stream)
+    - Output tetap MP3 container beneran, bukan MP4 nyamar
     """
+    thumb_path = cover_path + '.thumb.jpg'
     try:
+        # Step 1: resize cover ke 500x500 JPEG via ffmpeg
+        subprocess.run(
+            [
+                'ffmpeg', '-y',
+                '-i', cover_path,
+                '-vf', 'scale=500:500:force_original_aspect_ratio=decrease,pad=500:500:(ow-iw)/2:(oh-ih)/2',
+                '-q:v', '6',
+                thumb_path,
+            ],
+            check=True,
+            capture_output=True,
+            timeout=15,
+        )
+
+                # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+        # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
-        with open(cover_path, 'rb') as img_f:
+        with open(thumb_path, 'rb') as img_f:
             img_data = img_f.read()
-
-        if len(img_data) < 100:
-            logger.warning("[WARN] Cover embed dibatalkan: file gambar terlalu kecil")
-            return
 
         try:
             tags = ID3(mp3_path)
         except ID3Error:
             tags = ID3()
 
-               # Hapus cover lama kalau ada, biar tidak double
-        tags.delall('APIC')
-
         tags.add(APIC(
-            encoding=3,        # UTF-8
+            encoding=3,          # UTF-8
             mime='image/jpeg',
-            type=3,            # Cover (front)
+            type=3,              # Cover (front)
             desc='Cover',
             data=img_data,
         ))
         tags.save(mp3_path, v2_version=3)
-        logger.info(f"[IMG] Cover art di-embed ({len(img_data)//1024}KB)")
+        logger.info(f"[IMG] Cover art di-embed via ID3 APIC ({len(img_data)//1024}KB)")
 
     except Exception as e:
         logger.warning(f"[WARN] Cover embed gagal (tidak fatal): {e}")
+    finally:
+        if os.path.exists(thumb_path):
+            try:
+                os.remove(thumb_path)
+            except Exception:
+                pass
 
 
 def get_tiktok_audio_url(tiktok_url):
@@ -638,32 +652,29 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
         # --- TIKTOK: extract audio stream URL via yt-dlp, lalu download langsung ---
         emit(15, "Mengambil informasi video...")
 
-            # Ambil audio stream via yt-dlp
-        audio_url, ydlp_cover, api_title = get_tiktok_audio_url(url)
+            # Coba yt-dlp dulu untuk audio stream asli
+        audio_url, cover_url, api_title = get_tiktok_audio_url(url)
         final_title = api_title or title
 
-        # Cover: Prioritas 1 → origin_cover TikWM (paling bersih)
-        _, tikwm_cover, tikwm_title = get_meta_via_tikwm(url)
-        if tikwm_cover:
-            cover_url = tikwm_cover
-            logger.info("[IMG] Cover: pakai origin_cover TikWM")
-        elif ydlp_cover:
-            # Prioritas 2 → thumbnail yt-dlp
-            cover_url = ydlp_cover
-            logger.info("[IMG] Cover: fallback ke thumbnail yt-dlp")
-        else:
-            cover_url = None
-            logger.info("[IMG] Cover: semua sumber gagal, skip embed")
-
-        if not final_title or final_title == 'audio':
-            final_title = tikwm_title or title
+        # Fallback ke TikWM untuk cover art kalau yt-dlp berhasil
+        if not cover_url:
+            _, cover_url_tikwm, tikwm_title = get_meta_via_tikwm(url)
+            cover_url  = cover_url_tikwm
+            if not final_title or final_title == 'audio':
+                final_title = tikwm_title or title
 
         if audio_url:
             emit(30, "Mengunduh audio...")
             download_audio_direct(audio_url, out_mp3)
         else:
+            # Terakhir: fallback ke TikWM video URL + extract audio
+            # for_audio=True -> ambil play/SD bukan hdplay, audio track identik tapi stream lebih ringan
             emit(20, "Memproses video...")
-            video_url, _, _ = get_meta_via_tikwm(url, for_audio=True)
+            video_url, cover_url2, tikwm_title = get_meta_via_tikwm(url, for_audio=True)
+            if not cover_url:
+                cover_url = cover_url2
+            if not final_title or final_title == 'audio':
+                final_title = tikwm_title or title
             if not video_url:
                 raise RuntimeError("Gagal mengambil video, silakan coba lagi.")
             emit(35, "Mengunduh audio...")
@@ -858,6 +869,25 @@ def download_url_api():
             resp = session.get(f"https://www.tikwm.com/api/?url={url_input}", timeout=15).json()
             if resp.get('code') == 0:
                 v = resp['data']
+
+                # Deteksi slideshow: ada field 'images' (array foto) dan tidak ada video stream
+                images     = v.get('images') or []
+                play_url   = v.get('play')
+                is_slideshow = bool(images) and not play_url
+
+                if is_slideshow:
+                    logger.info(f"[SLIDESHOW] Konten foto terdeteksi ({len(images)} gambar): {url_input[-40:]}")
+                    kirim_notif(f"📸 Slideshow terdeteksi!\nURL: {url_input[-60:]}\nJumlah foto: {len(images)}")
+                    return jsonify({
+                        "status":       "slideshow",
+                        "title":        v.get('title', 'TikTok Slideshow'),
+                        "cover":        v.get('origin_cover') or v.get('cover'),
+                        "author":       v.get('author', {}).get('nickname', 'User'),
+                        "duration":     f"{v.get('duration', 0)}s",
+                        "size":         f"{v.get('size', 0) / 1024 / 1024:.2f}MB",
+                        "image_count":  len(images),
+                    })
+
                 result = {
                     "status":   "success",
                     "title":    v.get('title', 'TikTok Video'),
@@ -865,7 +895,7 @@ def download_url_api():
                     "author":   v.get('author', {}).get('nickname', 'User'),
                     "duration": f"{v.get('duration', 0)}s",
                     "size":     f"{v.get('size', 0) / 1024 / 1024:.2f}MB",
-                    "play":     v.get('play'),
+                    "play":     play_url,
                     "hdplay":   v.get('hdplay'),
                 }
 
@@ -1155,7 +1185,6 @@ def fast_mp3_api():
     try:
         audio_url   = None
         video_url   = None
-        cover_url   = None
         final_title = title
 
         if is_tiktok:
@@ -1165,26 +1194,10 @@ def fast_mp3_api():
 
             # Selalu fetch langsung ke TikWM - tanpa cache
             logger.info(f"[FETCH] Ambil metadata video: {mask_url(tiktok_url)}")
-            vid_url, tikwm_cover, tikwm_title = get_meta_via_tikwm(tiktok_url, for_audio=True)
+            vid_url, _, tikwm_title = get_meta_via_tikwm(tiktok_url, for_audio=True)
             video_url   = vid_url
             audio_url   = vid_url
             final_title = tikwm_title or title
-
-            # Prioritas 1: origin_cover TikWM (bersih, tanpa watermark)
-            if tikwm_cover:
-                cover_url = tikwm_cover
-                logger.info("[IMG] Cover: pakai origin_cover TikWM")
-            else:
-                # Prioritas 2: thumbnail dari yt-dlp (juga bersih)
-                try:
-                    with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True, 'noplaylist': True}) as ydl:
-                        info_ydl = ydl.extract_info(tiktok_url, download=False)
-                        cover_url = info_ydl.get('thumbnail')
-                        if cover_url:
-                            logger.info("[IMG] Cover: fallback ke thumbnail yt-dlp")
-                except Exception:
-                    cover_url = None
-                    logger.info("[IMG] Cover: semua sumber gagal, skip embed")
 
         else:
             # Non-TikTok: tetap pakai yt-dlp
@@ -1201,12 +1214,68 @@ def fast_mp3_api():
                 audio_url   = info.get('url')
                 video_url   = info.get('url')
                 final_title = info.get('title', title)
-                cover_url   = info.get('thumbnail')  # thumbnail bersih tanpa watermark
 
         if not audio_url:
             return "Gagal mengambil audio, silakan coba lagi.", 500
 
+             # OPTIMASI 3: Cover dari frame tengah - 1 ffmpeg command, no ffprobe
+        # -sseof -0.5 = seek ke 50% dari akhir (efektif = tengah untuk video pendek)
+        # Lebih akurat: pakai -ss 50% tapi ffmpeg support ini via metadata
+        # Trick: seek ke posisi relatif dengan -ss dan total duration dari header
+        cover_raw  = [None]
+        cover_done = threading.Event()
 
+        def extract_cover_fast():
+            """Extract frame tengah video - 1 subprocess, no ffprobe."""
+            src = video_url or audio_url
+            try:
+                # Trick: ffmpeg baca sedikit header dulu untuk durasi
+                # lalu seek ke tengah - semua dalam 1 command
+                # -sseof -N seek dari akhir N detik (kita pakai durasi/2 = seek dari akhir durasi/2)
+                # Karena kita ga tau durasi, pakai pendekatan: seek ke 5 detik dulu,
+                # jika gagal fallback ke detik 1
+                frame_proc = subprocess.run(
+                    [
+                        'ffmpeg', '-y',
+                        '-ss', '00:00:05',       # seek ke detik 5 (tengah video ~10 detik)
+                        '-i', src,
+                        '-vframes', '1',
+                        '-vf', 'crop=min(iw\\,ih):min(iw\\,ih),scale=500:500',
+                        '-f', 'image2',
+                        '-vcodec', 'mjpeg',
+                        'pipe:1',
+                    ],
+                    capture_output=True, timeout=12,
+                )
+                if frame_proc.returncode == 0 and len(frame_proc.stdout) > 500:
+                    cover_raw[0] = frame_proc.stdout
+                    logger.info(f"[IMG] Frame cover OK ({len(cover_raw[0])//1024}KB)")
+                else:
+                    # Fallback: detik 1 (video sangat pendek < 5 detik)
+                    frame_proc2 = subprocess.run(
+                        [
+                            'ffmpeg', '-y',
+                            '-ss', '00:00:01',
+                            '-i', src,
+                            '-vframes', '1',
+                            '-vf', 'crop=min(iw\\,ih):min(iw\\,ih),scale=500:500',
+                            '-f', 'image2', '-vcodec', 'mjpeg', 'pipe:1',
+                        ],
+                        capture_output=True, timeout=10,
+                    )
+                    if frame_proc2.returncode == 0 and len(frame_proc2.stdout) > 500:
+                        cover_raw[0] = frame_proc2.stdout
+                        logger.info(f"[IMG] Frame fallback OK ({len(cover_raw[0])//1024}KB)")
+                    else:
+                        logger.warning("[WARN] Frame extract gagal semua")
+            except Exception as e:
+                logger.warning(f"[WARN] Cover error: {e}")
+            finally:
+                cover_done.set()
+
+        # OPTIMASI 4: cover + audio paralel
+        cover_thread = threading.Thread(target=extract_cover_fast, daemon=True)
+        cover_thread.start()
 
         # ── Encode audio via ffmpeg pipe ──
         audio_headers = TIKTOK_HEADERS.copy()
@@ -1244,17 +1313,26 @@ def fast_mp3_api():
             err = proc.stderr.read().decode(errors='ignore')[-300:]
             raise RuntimeError("Gagal memproses audio, silakan coba lagi.")
 
-        # ── Embed cover dari TikWM origin_cover (tanpa watermark) ──
-        if cover_url:
-            import tempfile as _tmpmod
-            _cover_fd, _cover_path = _tmpmod.mkstemp(suffix='_cover.jpg')
-            os.close(_cover_fd)
-            if download_cover(cover_url, _cover_path):
-                embed_cover(tmp_mp3, _cover_path)
+        # Tunggu cover (max 3 detik — audio encode biasanya lebih lama)
+        cover_done.wait(timeout=3)
+
+        # ── Embed cover via mutagen ──
+        if cover_raw[0]:
             try:
-                os.remove(_cover_path)
-            except Exception:
-                pass
+                from mutagen.id3 import ID3, APIC, error as ID3Error
+                try:
+                    tags = ID3(tmp_mp3)
+                except ID3Error:
+                    tags = ID3()
+                tags.add(APIC(
+                    encoding=3, mime='image/jpeg',
+                    type=3, desc='Cover',
+                    data=cover_raw[0],
+                ))
+                tags.save(tmp_mp3, v2_version=3)
+                logger.info(f"[IMG] Cover embed OK ({len(cover_raw[0])//1024}KB)")
+            except Exception as e:
+                logger.warning(f"[WARN] Cover embed gagal: {e}")
 
         # ── Stream MP3 ke browser ──
         filename  = f"[Vinder].{safe_filename(final_title)}.mp3"
