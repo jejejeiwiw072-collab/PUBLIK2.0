@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                           .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                            .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .upload-preview button {
       width: auto;
@@ -1049,6 +1049,31 @@ Spotify secara cepat dan aman.</div>
 
   </div>
 
+  <!-- ===== SLIDESHOW MODAL ===== -->
+  <div class="modal-overlay" id="slideshow-modal" onclick="handleOverlayClick(event,'slideshow-modal')">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="text-align:center; margin-bottom:18px;">
+        <div style="font-size:36px; margin-bottom:10px;">🖼️</div>
+        <div class="modal-title">Konten Slideshow Terdeteksi</div>
+        <div class="modal-subtitle" id="slideshow-modal-desc">URL ini berisi foto-foto, bukan video. Vinder hanya bisa mengunduh audionya saja. Lanjut unduh audio?</div>
+      </div>
+      <div id="slideshow-preview-thumb" style="display:none; margin-bottom:16px; border-radius:10px; overflow:hidden;">
+        <img id="slideshow-thumb-img" style="width:100%; height:140px; object-fit:cover; display:block; opacity:0.75;">
+        <div style="background:#111; padding:10px 14px;">
+          <div id="slideshow-thumb-title" style="font-size:13px; font-weight:600; color:#e8e8e8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+          <div id="slideshow-thumb-meta" style="font-size:11px; color:#666; margin-top:3px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeSlideshowModal()">Batal</button>
+        <button class="btn-send" id="slideshow-confirm-btn" onclick="confirmSlideshowAudio()" style="background:var(--mp3-active);">
+          🎵 Ya, Unduh Audio
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== DOWNLOAD BUBBLES ===== -->
   <div id="dl-container"></div>
 
@@ -1250,7 +1275,7 @@ Spotify secara cepat dan aman.</div>
     const container = document.getElementById('url-preview-container');
     const btnDl = document.getElementById('btn-dlurl');
 
-    container.style.display = 'block';
+  container.style.display = 'block';
     container.innerHTML = '<div style="font-size:11px; color:var(--muted); padding:8px 0;">🔍 Mengintip link...</div>';
     btnDl.disabled = true;
     btnDl.textContent = 'Sedang diproses...';
@@ -1280,6 +1305,25 @@ Spotify secara cepat dan aman.</div>
         `;
         btnDl.disabled = false;
         btnDl.textContent = selectedFormat === 'mp3' ? '⬇ Download MP3' : '⬇ Download MP4';
+      } else if (data.status === 'slideshow') {
+        // Slideshow terdeteksi — simpan data, tampilkan preview khusus
+        currentPreviewData = { ...data, _isSlideshow: true };
+        container.innerHTML = `
+          <div class="preview-card" style="border-color:#9333ea; background:rgba(147,51,234,0.06);">
+            <img src="${data.cover}" class="preview-thumb" style="opacity:0.6;">
+            <div class="preview-info">
+              <div class="preview-title" style="color:#c084fc;">🖼️ Slideshow Foto</div>
+              <div class="preview-meta">
+                <span class="meta-tag">👤 ${data.author}</span>
+                <span class="meta-tag">📸 ${data.image_count} foto</span>
+              </div>
+              <div style="font-size:10px; color:#9333ea; margin-top:4px;">Hanya audio yang bisa diunduh</div>
+            </div>
+            <div style="font-size:18px;">🎵</div>
+          </div>
+        `;
+        btnDl.disabled = false;
+        btnDl.textContent = '🎵 Unduh Audio Saja';
       } else {
         container.style.display = 'none';
         btnDl.disabled = false;
@@ -1518,6 +1562,12 @@ Spotify secara cepat dan aman.</div>
       return;
     }
 
+    // Kalau sudah dideteksi sebagai slideshow dari autoPreview → langsung tampilkan modal
+    if (currentPreviewData && lastUrl === url && currentPreviewData._isSlideshow) {
+      openSlideshowModal(currentPreviewData, url);
+      return;
+    }
+
     const resolution = resSelected['Url'];
 
     // MP3 mode → background job langsung
@@ -1546,7 +1596,10 @@ Spotify secara cepat dan aman.</div>
         body: JSON.stringify({ url, resolution })
       });
       const data = await resp.json();
-      if (data.status === 'success') {
+      if (data.status === 'slideshow') {
+        // Slideshow terdeteksi tanpa autoPreview — tampilkan modal
+        openSlideshowModal(data, url);
+      } else if (data.status === 'success') {
         const dUrl = getDownloadUrl(data, resolution);
         handleRealDownload(dUrl, data.title);
       } else {
@@ -1559,6 +1612,42 @@ Spotify secara cepat dan aman.</div>
       btn.disabled = false;
       btn.textContent = selectedFormat === 'mp3' ? '⬇ Download MP3' : '⬇ Download MP4';
     }
+  }
+
+  /* ===== SLIDESHOW MODAL HELPERS ===== */
+  let _slideshowUrl   = '';
+  let _slideshowTitle = '';
+
+  function openSlideshowModal(data, url) {
+    _slideshowUrl   = url;
+    _slideshowTitle = data.title || 'TikTok Slideshow';
+
+    // Isi desc
+    const count = data.image_count || '?';
+    document.getElementById('slideshow-modal-desc').textContent =
+      `URL ini berisi ${count} foto, bukan video. Vinder hanya bisa mengunduh audionya. Lanjut unduh audio?`;
+
+    // Isi thumbnail kalau ada cover
+    if (data.cover) {
+      document.getElementById('slideshow-thumb-img').src      = data.cover;
+      document.getElementById('slideshow-thumb-title').textContent = _slideshowTitle;
+      document.getElementById('slideshow-thumb-meta').textContent  =
+        `👤 ${data.author || 'User'}  •  📸 ${count} foto`;
+      document.getElementById('slideshow-preview-thumb').style.display = 'block';
+    } else {
+      document.getElementById('slideshow-preview-thumb').style.display = 'none';
+    }
+
+    document.getElementById('slideshow-modal').classList.add('open');
+  }
+
+  function closeSlideshowModal() {
+    document.getElementById('slideshow-modal').classList.remove('open');
+  }
+
+  function confirmSlideshowAudio() {
+    closeSlideshowModal();
+    startMp3Background(_slideshowUrl, _slideshowTitle);
   }
 
   /* ===== KEYBOARD SHORTCUTS ===== */
@@ -1825,7 +1914,7 @@ Spotify secara cepat dan aman.</div>
 
       const blob = await resp.blob();
 
-           // Lapisan 1: validasi blob
+      // Lapisan 1: validasi blob
       if (!VinderGuard.isValidMediaBlob(blob)) {
         bubble.setError('❌ File yang diterima tidak valid — coba lagi');
         return;
