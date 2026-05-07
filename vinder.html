@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                           .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                          .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .upload-preview button {
       width: auto;
@@ -1275,7 +1275,7 @@ Spotify secara cepat dan aman.</div>
     const container = document.getElementById('url-preview-container');
     const btnDl = document.getElementById('btn-dlurl');
 
-   container.style.display = 'block';
+    container.style.display = 'block';
     container.innerHTML = '<div style="font-size:11px; color:var(--muted); padding:8px 0;">🔍 Mengintip link...</div>';
     btnDl.disabled = true;
     btnDl.textContent = 'Sedang diproses...';
@@ -1803,7 +1803,7 @@ Spotify secara cepat dan aman.</div>
       if (btn._origText) btn.textContent = btn._origText;
     }
 
-    // ── LAPISAN 1: Validasi response sebelum download ──
+  // ── LAPISAN 1: Validasi response sebelum download ──
     function isValidMediaBlob(blob) {
       const bad = ['text/html', 'application/json', 'text/plain'];
       return blob && blob.size > 10240 && !bad.some(t => blob.type.includes(t));
