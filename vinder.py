@@ -556,8 +556,8 @@ def embed_cover(mp3_path, cover_path):
             check=True,
             capture_output=True,
             timeout=15,
-             )
-        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+        )
+             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1095,6 +1095,7 @@ def get_mp3_file_api():
     )
 
 
+
 @app.route('/api/get_mp3')
 def get_mp3_api():
     """Endpoint fallback MP3 tanpa SSE (satu request langsung)."""
@@ -1240,7 +1241,7 @@ def fast_mp3_api():
 
         proc = subprocess.Popen(
             ['ffmpeg', '-y', '-i', 'pipe:0', '-vn',
-             '-acodec', 'libmp3lame', '-q:a', '0', '-ar', '44100',
+             '-acodec', 'libmp3lame', '-ab', '128k', '-ar', '44100',
              '-f', 'mp3', tmp_mp3],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
