@@ -557,7 +557,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-# Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -872,7 +872,7 @@ def download_url_api():
                 # Deteksi slideshow: ada field 'images' (array foto) dan tidak ada video stream
                 images     = v.get('images') or []
                 play_url   = v.get('play')
-                is_slideshow = bool(images) and not play_url
+                is_slideshow = bool(images)
 
                 if is_slideshow:
                     logger.info(f"[SLIDESHOW] Konten foto terdeteksi ({len(images)} gambar): {url_input[-40:]}")
@@ -1087,6 +1087,7 @@ def get_mp3_file_api():
             'Cache-Control':       'no-cache',
         }
     )
+
 
 
 @app.route('/api/get_mp3')
