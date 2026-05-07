@@ -717,6 +717,12 @@ def index():
     return send_file('vinder.html')
 
 
+@app.route('/api/ping')
+def ping():
+    """Keep-alive endpoint — dipanggil frontend tiap 4 menit biar Railway tidak sleep."""
+    return '', 204
+
+
 @app.route('/api/search', methods=['POST'])
 @limiter.limit('10 per minute')
 def search_videos_api():
@@ -1087,7 +1093,6 @@ def get_mp3_file_api():
             'Cache-Control':       'no-cache',
         }
     )
-
 
 
 @app.route('/api/get_mp3')
