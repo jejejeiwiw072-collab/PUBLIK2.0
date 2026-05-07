@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                                                .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                                               .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .upload-preview button {
       width: auto;
@@ -975,7 +975,7 @@
         <span class="clear-btn" id="clear-filter" onclick="clearInput('filter')">✕</span>
       </div>
       <div class="input-wrapper">
-        <input id="limit" max="50" min="1" placeholder="Jumlah hasil (1–50)" type="number" value=""/>
+        <input id="limit" max="25" min="1" placeholder="Jumlah hasil (1–25)" type="number" value=""/>
         <span class="clear-btn" id="clear-limit" onclick="clearInput('limit')">✕</span>
       </div>
       <button class="btn-primary" id="btn-search" onclick="doSearch()">Cari Sekarang</button>
@@ -1753,7 +1753,7 @@ Spotify secara cepat dan aman.</div>
       revokeAll();
     }
 
-    // ── LAPISAN 5: Cleanup berkala setiap 5 menit ──
+   // ── LAPISAN 5: Cleanup berkala setiap 5 menit ──
     const periodicId = setInterval(() => {
       revokeAll();
       // Hapus bubble download yang sudah fade-out tapi masih di DOM
