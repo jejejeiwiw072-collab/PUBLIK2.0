@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                         .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                          .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .upload-preview button {
       width: auto;
@@ -1706,7 +1706,7 @@ Spotify secara cepat dan aman.</div>
     }
     const subject = encodeURIComponent(`[Vinder Feedback] dari ${name}`);
     const body = encodeURIComponent(`Dari: ${name}\n\nPesan:\n${message}\n\n---\nDikirim via Vinder v1.2`);
-    window.open(`mailto:zakdev@gmail.com?subject=${subject}&body=${body}`, '_blank');
+    window.open(`mailto:zakdeveloper632@gmail.com?subject=${subject}&body=${body}`, '_blank');
     closeFeedbackModal();
   }
 
@@ -1971,6 +1971,20 @@ Spotify secara cepat dan aman.</div>
       VinderGuard.unlockBtn(btn);
     }
   };
+
+  /* ============================================================
+   * KEEP-ALIVE PING — Cegah Railway sleep
+   * Ping server tiap 4 menit selama tab masih terbuka.
+   * Kalau gagal, ditelan diam-diam — tidak ganggu apapun.
+   * ============================================================ */
+  (function() {
+    const INTERVAL = 4 * 60 * 1000; // 4 menit
+    setInterval(async () => {
+      try {
+        await fetch('/api/ping', { method: 'GET' });
+      } catch(_) {}
+    }, INTERVAL);
+  })();
 
   </script>
 </body>
