@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                          .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                                                .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .upload-preview button {
       width: auto;
@@ -1143,14 +1143,6 @@ Spotify secara cepat dan aman.</div>
           </div>
        <span class="donate-opt-arrow">›</span>
         </a>
-        <a class="donate-option" href="https://saweria.co/ZakdevComunity" target="_blank">
-          <div class="donate-opt-icon" style="background:#1a0808;">❤️</div>
-          <div class="donate-opt-info">
-            <div class="donate-opt-name">Trakteer</div>
-            <div class="donate-opt-desc">Support via Trakteer</div>
-          </div>
-          <span class="donate-opt-arrow">›</span>
-        </a>
         
 
       </div>
@@ -1402,12 +1394,9 @@ Spotify secara cepat dan aman.</div>
         [400,  18,  '🎯 Mengambil stream audio...'],
         [700,  30,  '🔗 Menghubungkan ke server video...'],
         [1000, 42,  '🎵 Mengekstrak audio asli...'],
-        [1400, 55,  '⚙️ Encoding MP3 128kbps...'],
-        [1900, 65,  '🖼️ Mengambil cover dari video...'],
-        [2400, 75,  '✂️ Crop & resize cover 500x500...'],
-        [2800, 83,  '🏷️ Menyematkan cover art...'],
-        [3200, 90,  '📦 Menyiapkan file MP3...'],
-        [3600, 95,  '🚀 Hampir selesai...'],
+        [1400, 55,  '⚙️ Encoding MP3...'],
+        [2000, 75,  '📦 Menyiapkan file MP3...'],
+        [3000, 90,  '🚀 Hampir selesai...'],
       ];
       steps.forEach(([delay, pct, msg]) => {
         const t = setTimeout(() => {
