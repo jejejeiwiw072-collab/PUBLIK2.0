@@ -720,6 +720,10 @@ def index():
 @app.route('/api/ping')
 def ping():
     """Keep-alive endpoint — dipanggil frontend tiap 4 menit biar Railway tidak sleep."""
+    try:
+        session.head('https://www.tikwm.com', timeout=5)
+    except Exception:
+        pass
     return '', 204
 
 
@@ -1095,7 +1099,6 @@ def get_mp3_file_api():
     )
 
 
-
 @app.route('/api/get_mp3')
 def get_mp3_api():
     """Endpoint fallback MP3 tanpa SSE (satu request langsung)."""
@@ -1299,7 +1302,26 @@ def fast_mp3_api():
 # MAIN
 # =============================================================================
 
+def _self_ping_loop():
+    """Self-ping ke server sendiri tiap 4 menit supaya Railway tidak sleep."""
+    import time as _time
+    _time.sleep(60)  # tunggu server ready dulu
+    base = os.environ.get('RAILWAY_PUBLIC_DOMAIN') or os.environ.get('PUBLIC_URL')
+    if not base:
+        logger.info("[PING] RAILWAY_PUBLIC_DOMAIN tidak ditemukan, self-ping nonaktif.")
+        return
+    url = f"https://{base.rstrip('/')}/api/ping"
+    logger.info(f"[PING] Self-ping aktif → {url} setiap 4 menit")
+    while True:
+        try:
+            requests.get(url, timeout=10)
+            logger.info("[PING] Self-ping OK")
+        except Exception as e:
+            logger.warning(f"[PING] Self-ping gagal: {e}")
+        _time.sleep(4 * 60)
+
 if __name__ == "__main__":
+    threading.Thread(target=_self_ping_loop, daemon=True).start()
     kirim_notif("Sistem Vinder Berhasil ON di Railway!")
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
