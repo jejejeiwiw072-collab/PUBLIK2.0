@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-            # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1300,6 +1300,182 @@ def fast_mp3_api():
         return "Terjadi kesalahan saat memproses audio. Silakan coba lagi.", 500
 
 # =============================================================================
+# DAILY HEALTH + AI MESSAGE
+# =============================================================================
+
+_GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+_HEALTH_SAMPLE_URL = "https://vt.tiktok.com/ZS9GBdy9y/"
+
+_PESAN_SUKSES_DAILY = [
+    "🟢 Vinder masih hidup bro, aman!",
+    "✅ Cek harian kelar — downloader jalan normal, santuy~",
+    "💪 Semua sistem OK, TikWM nurut hari ini.",
+    "🎯 Health check passed! Vinder sehat walafiat.",
+    "🚀 Server masih ngebut, GK ada masalah hari ini.",
+    "😎 Dicek udah, aman. Vinder lagi on fire!",
+    "🟢 TikWM kooperatif, link download keluar normal.",
+    "✅ Vinder hidup & sehat — laporan harian beres.",
+    "🔥 Semua OK boss, sistem berjalan mulus.",
+    "💡 Cek harian: passed! Ga ada yang perlu dikhawatirin.",
+]
+
+
+def _analisis_groq_daily(error_detail):
+    """Panggil Groq untuk analisis error health check harian."""
+    if not _GROQ_API_KEY:
+        logger.warning("[DAILY] GROQ_API_KEY tidak ditemukan, analisis skip.")
+        return "Analisis tidak tersedia (API key tidak ada)."
+    try:
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {_GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama3-8b-8192",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Kamu adalah analis sistem untuk website downloader TikTok bernama Vinder. "
+                            "Tugasmu: analisis error health check dengan singkat, jelas, dan dalam bahasa Indonesia santai. "
+                            "Maksimal 3 kalimat. Langsung ke poin, tidak perlu basa-basi."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Health check Vinder gagal. Detail error:\n{error_detail}"
+                    }
+                ],
+                "max_tokens": 200,
+                "temperature": 0.7
+            },
+            timeout=15
+        )
+        data = resp.json()
+        return data["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        logger.warning(f"[DAILY] Groq analisis gagal: {e}")
+        return "Analisis Groq tidak tersedia saat ini."
+
+
+def _groq_startup_ping():
+    """Panggil Groq sekali saat server ON, kirim ke Telegram sebagai test ping AI."""
+    if not _GROQ_API_KEY:
+        logger.warning("[DAILY] GROQ_API_KEY tidak ditemukan, startup ping skip.")
+        return
+    try:
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {_GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama3-8b-8192",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Kamu adalah asisten bot Vinder, website downloader TikTok. "
+                            "Kamu baru saja aktif. Kirim sapaan singkat, santai, bahasa Indonesia. "
+                            "Maksimal 2 kalimat. Langsung sapaan, tidak perlu basa-basi."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": "Hello apakah kamu bisa mendengarkan ku?"
+                    }
+                ],
+                "max_tokens": 100,
+                "temperature": 0.9
+            },
+            timeout=15
+        )
+        data = resp.json()
+        pesan_ai = data["choices"][0]["message"]["content"].strip()
+        kirim_notif(f"🤖 Vinder AI Online!\n{pesan_ai}")
+        logger.info("[DAILY] Startup AI ping berhasil dikirim ke Telegram.")
+    except Exception as e:
+        logger.warning(f"[DAILY] Startup AI ping gagal: {e}")
+
+
+def _run_daily_health_check():
+    """Jalankan health check harian: test TikWM, kirim hasil ke Telegram."""
+    import random as _random
+    from datetime import datetime as _datetime
+
+    logger.info(f"[DAILY] Mulai health check harian — {_datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    error_detail = None
+
+        try:
+        resp = requests.get(
+            f"https://www.tikwm.com/api/?url={_HEALTH_SAMPLE_URL}",
+            timeout=15
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get("code") != 0:
+            error_detail = (
+                f"TikWM return code={data.get('code')}, msg={data.get('msg')}.\n"
+                f"Raw response: {str(data)[:300]}"
+            )
+        else:
+            v        = data.get("data", {})
+            play_url = v.get("play") or v.get("hdplay")
+            size     = v.get("size", 0)
+
+            if not play_url:
+                error_detail = "TikWM response OK tapi link download tidak muncul (play/hdplay kosong)."
+            elif size == 0:
+                error_detail = "TikWM response OK, link ada, tapi size video = 0 bytes."
+
+    except requests.exceptions.Timeout:
+        error_detail = "Request ke TikWM timeout (>15 detik). Server mungkin lambat atau down."
+    except requests.exceptions.ConnectionError:
+        error_detail = "Gagal konek ke TikWM. Cek koneksi server atau TikWM sedang down."
+    except Exception as e:
+        error_detail = f"Error tidak terduga: {type(e).__name__}: {str(e)}"
+
+    now_str = _datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    if error_detail:
+        logger.error(f"[DAILY] Health check GAGAL — {error_detail}")
+        analisis = _analisis_groq_daily(error_detail)
+        kirim_notif(
+            f"❌ Vinder Health Check GAGAL!\n"
+            f"🕒 {now_str}\n\n"
+            f"📋 Error:\n{error_detail}\n\n"
+            f"🤖 Analisis AI:\n{analisis}"
+        )
+    else:
+        logger.info("[DAILY] Health check PASSED — semua sistem normal.")
+        pesan_acak = _random.choice(_PESAN_SUKSES_DAILY)
+        kirim_notif(f"{pesan_acak}\n🕒 {now_str}")
+
+
+def _daily_health_loop():
+    """Background thread: startup AI ping sekali, lalu health check tiap jam 15:00."""
+    import time as _time
+    from datetime import datetime as _datetime, timedelta as _timedelta
+
+    _time.sleep(5)  # tunggu server ready dulu
+    _groq_startup_ping()  # test AI langsung saat server ON
+
+    while True:
+        now    = _datetime.now()
+        target = now.replace(hour=15, minute=0, second=0, microsecond=0)
+        if now >= target:
+            target += _timedelta(days=1)
+        wait_seconds = (target - now).total_seconds()
+        logger.info(f"[DAILY] Health check dijadwalkan dalam {int(wait_seconds//3600)}j {int((wait_seconds%3600)//60)}m")
+        _time.sleep(wait_seconds)
+        _run_daily_health_check()
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -1327,6 +1503,7 @@ def _self_ping_loop():
 
 if __name__ == "__main__":
     threading.Thread(target=_self_ping_loop, daemon=True).start()
+    threading.Thread(target=_daily_health_loop, daemon=True).start()
     kirim_notif("Sistem Vinder Berhasil ON di Railway!")
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
