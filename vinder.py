@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-            # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+           # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -804,8 +804,7 @@ SUPPORTED_PLATFORMS = [
 def is_supported_url(url):
      if not url:
          return False
-     try:
-+        from urllib.parse import urlparse
+     try: from urllib.parse import urlparse
          netloc = urlparse(url).netloc.lower()
          netloc = netloc.split(":")[0]  # hapus port kalau ada
          return any(netloc == p or netloc.endswith("." + p) for p in SUPPORTED_PLATFORMS)
@@ -1090,7 +1089,8 @@ def get_mp3_file_api():
                     break
                 yield chunk
         do_cleanup(out_tmpl)
-return Response(
+
+    return Response(
         stream_with_context(generate_mp3_file()),
         headers={
             'Content-Type':        'audio/mpeg',
@@ -1506,4 +1506,3 @@ if __name__ == "__main__":
     kirim_notif("Sistem Vinder Berhasil ON di Railway!")
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
-    
