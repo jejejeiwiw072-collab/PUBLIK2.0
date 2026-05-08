@@ -800,16 +800,17 @@ SUPPORTED_PLATFORMS = [
     'facebook.com', 'fb.watch',
 ]
 
-def is_supported_url(url):
-    if not url:
-        return False
-    try:
-        netloc = urlparse(url).netloc.lower()
-        netloc = netloc.split(":")[0]  # hapus port kalau ada
-        return any(netloc == p or netloc.endswith("." + p) for p in SUPPORTED_PLATFORMS)
-    except Exception:
-        return False
 
+def is_supported_url(url):
+     if not url:
+         return False
+     try:
++        from urllib.parse import urlparse
+         netloc = urlparse(url).netloc.lower()
+         netloc = netloc.split(":")[0]  # hapus port kalau ada
+         return any(netloc == p or netloc.endswith("." + p) for p in SUPPORTED_PLATFORMS)
+     except Exception:
+         return False
 
 # FIX #3 & #7: Validasi URL untuk mencegah SSRF dan skema berbahaya
 # Blokir: file://, ftp://, http://localhost, http://127.x, http://169.254.x (AWS metadata)
@@ -1409,7 +1410,7 @@ def _run_daily_health_check():
     logger.info(f"[DAILY] Mulai health check harian — {_datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     error_detail = None
 
-        try:
+    try:
         resp = requests.get(
             f"https://www.tikwm.com/api/?url={_HEALTH_SAMPLE_URL}",
             timeout=15
