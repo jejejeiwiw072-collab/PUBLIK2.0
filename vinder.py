@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-              # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+            # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1065,16 +1065,16 @@ def mp3_progress_api():
 def get_mp3_file_api():
     """Ambil file MP3 yang sudah selesai diproses via SSE."""
     uid = request.args.get('uid', '')
-    # FIX #5: Validasi uid hanya boleh angka (timestamp milidetik)
+    # FIX #5: Validasi uid format UUID (setelah migrasi dari timestamp ke uuid4)
     # Cegah path traversal seperti uid='../etc/passwd'
-    if not uid or not uid.isdigit() or len(uid) > 20:
+    if not uid or not re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', uid):
         return "UID tidak valid", 400
 
     out_tmpl  = f'/tmp/vinder_{uid}'
     out_mp3   = out_tmpl + '.mp3'
     done_flag = out_tmpl + '.ready'
 
-      if not os.path.exists(out_mp3) or not os.path.exists(done_flag):
+    if not os.path.exists(out_mp3) or not os.path.exists(done_flag):
         return "File tidak ditemukan atau belum selesai", 404
 
     with open(done_flag) as f:
