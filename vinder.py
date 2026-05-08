@@ -557,7 +557,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+               # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1312,10 +1312,14 @@ def _self_ping_loop():
         return
     url = f"https://{base.rstrip('/')}/api/ping"
     logger.info(f"[PING] Self-ping aktif → {url} setiap 4 menit")
+    first_ping = True
     while True:
         try:
             requests.get(url, timeout=10)
             logger.info("[PING] Self-ping OK")
+            if first_ping:
+                kirim_notif("📡 Self ping Active")
+                first_ping = False
         except Exception as e:
             logger.warning(f"[PING] Self-ping gagal: {e}")
         _time.sleep(4 * 60)
