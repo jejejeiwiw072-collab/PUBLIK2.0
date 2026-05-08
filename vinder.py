@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import uuid
 import threading
 import requests
 import logging
@@ -557,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-               # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+              # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -713,7 +714,7 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
 @app.route('/')
 def index():
     ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'Unknown').split(',')[0].strip()
-    kirim_notif(f"🌐 Visitor masuk!\nIP: {ip}")
+    # kirim_notif(f"🌐 Visitor masuk!\nIP: {ip}")
     return send_file('vinder.html')
 
 
@@ -734,7 +735,7 @@ def search_videos_api():
     keyword    = data.get('keyword')
     limit      = data.get('limit', 10)
     filter_str = data.get('filter', '').strip()
-    kirim_notif(f"User nyari keyword: {keyword}")
+    # kirim_notif(f"User nyari keyword: {keyword}")
     logger.info(f"[SEARCH] Searching for: {keyword} | filter: '{filter_str}'")
 
     filter_op, filter_detik = parse_filter_durasi(filter_str)
@@ -886,7 +887,7 @@ def download_url_api():
 
                 if is_slideshow:
                     logger.info(f"[SLIDESHOW] Konten foto terdeteksi ({len(images)} gambar): {url_input[-40:]}")
-                    kirim_notif(f"📸 Slideshow terdeteksi!\nURL: {url_input[-60:]}\nJumlah foto: {len(images)}")
+                    # kirim_notif(f"📸 Slideshow terdeteksi!\nURL: {url_input[-60:]}\nJumlah foto: {len(images)}")
                     return jsonify({
                         "status":       "slideshow",
                         "title":        v.get('title', 'TikTok Slideshow'),
@@ -935,7 +936,7 @@ def get_video_api():
     video_url    = request.args.get('url')
     fallback_url = request.args.get('fallback')
     title        = request.args.get('title', 'video')
-    kirim_notif(f"User download MP4: {title}")
+    # kirim_notif(f"User download MP4: {title}")
 
     if not video_url:
         return "URL Kosong", 400
@@ -994,7 +995,7 @@ def mp3_progress_api():
         def send(pct, msg):
             return f"data: {pct}|{msg}\n\n"
 
-        uid      = str(int(time.time() * 1000))
+        uid      = str(uuid.uuid4())
         out_tmpl = f'/tmp/vinder_{uid}'
 
         # FIX: gunakan queue + thread agar SSE bisa yield progress real-time
@@ -1073,7 +1074,7 @@ def get_mp3_file_api():
     out_mp3   = out_tmpl + '.mp3'
     done_flag = out_tmpl + '.ready'
 
-    if not os.path.exists(out_mp3) or not os.path.exists(done_flag):
+      if not os.path.exists(out_mp3) or not os.path.exists(done_flag):
         return "File tidak ditemukan atau belum selesai", 404
 
     with open(done_flag) as f:
@@ -1115,7 +1116,7 @@ def get_mp3_api():
     if 'vt.tiktok.com' in tiktok_url or 'vm.tiktok.com' in tiktok_url:
         tiktok_url = resolve_tiktok_url(tiktok_url)
 
-    uid      = str(int(time.time() * 1000))
+    uid      = str(uuid.uuid4())
     out_tmpl = f'/tmp/vinder_{uid}'
 
     try:
@@ -1179,7 +1180,7 @@ def fast_mp3_api():
         tiktok_url = request.args.get('url', '').strip()
         title      = request.args.get('title', 'audio')
 
-    kirim_notif(f"User download MP3: {tiktok_url}")
+    # kirim_notif(f"User download MP3: {tiktok_url}")
 
     if not tiktok_url:
         return "URL Kosong", 400
