@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+            # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1090,8 +1090,7 @@ def get_mp3_file_api():
                     break
                 yield chunk
         do_cleanup(out_tmpl)
-
-    return Response(
+return Response(
         stream_with_context(generate_mp3_file()),
         headers={
             'Content-Type':        'audio/mpeg',
@@ -1409,7 +1408,6 @@ def _run_daily_health_check():
 
     logger.info(f"[DAILY] Mulai health check harian — {_datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     error_detail = None
-
     try:
         resp = requests.get(
             f"https://www.tikwm.com/api/?url={_HEALTH_SAMPLE_URL}",
@@ -1508,3 +1506,4 @@ if __name__ == "__main__":
     kirim_notif("Sistem Vinder Berhasil ON di Railway!")
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
+    
