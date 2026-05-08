@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-           # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -800,16 +800,15 @@ SUPPORTED_PLATFORMS = [
     'facebook.com', 'fb.watch',
 ]
 
-
 def is_supported_url(url):
-     if not url:
-         return False
-     try: from urllib.parse import urlparse
-         netloc = urlparse(url).netloc.lower()
-         netloc = netloc.split(":")[0]  # hapus port kalau ada
-         return any(netloc == p or netloc.endswith("." + p) for p in SUPPORTED_PLATFORMS)
-     except Exception:
-         return False
+    if not url:
+        return False
+    try:
+        netloc = urlparse(url).netloc.lower()
+        netloc = netloc.split(":")[0]
+        return any(netloc == p or netloc.endswith("." + p) for p in SUPPORTED_PLATFORMS)
+    except Exception:
+        return False
 
 # FIX #3 & #7: Validasi URL untuk mencegah SSRF dan skema berbahaya
 # Blokir: file://, ftp://, http://localhost, http://127.x, http://169.254.x (AWS metadata)
