@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-            # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+              # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1644,12 +1644,12 @@ def _ig_get_info_instaloader(url):
     )
     post = instaloader.Post.from_shortcode(loader.context, shortcode)
     return {
-        'title':    (post.caption or '').replace('\n', ' ')[:80] or f'Instagram {post.shortcode}',
-        'cover':    post.url,  # thumbnail/cover image URL
-        'author':   post.owner_username,
-        'duration': str(post.video_duration or 0) + 's',
-        'is_video': post.is_video,
-        'shortcode': shortcode,
+        'title':        (post.caption or '').replace('\n', ' ')[:80] or f'Instagram {post.shortcode}',
+        'cover':        post.url,
+        'author':       post.owner_username,
+        'duration_sec': int(post.video_duration or 0),
+        'is_video':     post.is_video,
+        'shortcode':    shortcode,
     }
 
 
@@ -1739,17 +1739,29 @@ def mp4_info_api():
         is_ig = 'instagram.com' in url
 
         if is_ig:
-            info = _ig_get_info_instaloader(url)
-            return jsonify({
-                "status":   "success",
-                "title":    info['title'],
-                "cover":    '/api/thumb?url=' + requests.utils.quote(info['cover']),
-                "author":   info['author'],
-                "duration": info['duration'],
-                "size":     "N/A",
-                "play":     url,
-                "hdplay":   url,
-            })
+            # ── INSTAGRAM INFO: pakai yt-dlp extract_info ──
+            # Lebih reliable untuk thumbnail & filesize dibanding instaloader
+            ydl_opts_ig = {
+                'format':      'bestvideo+bestaudio/best',
+                'quiet':       True,
+                'no_warnings': True,
+                'noplaylist':  True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_ig) as ydl:
+                info_ig = ydl.extract_info(url, download=False)
+                dur_sec  = int(info_ig.get('duration') or 0)
+                size_raw = info_ig.get('filesize') or info_ig.get('filesize_approx') or 0
+                size_str = f"{size_raw / 1024 / 1024:.2f}MB" if size_raw else "N/A"
+                return jsonify({
+                    "status":   "success",
+                    "title":    info_ig.get('title', 'Instagram Video'),
+                    "cover":    info_ig.get('thumbnail', ''),
+                    "author":   info_ig.get('uploader') or info_ig.get('channel') or 'Instagram',
+                    "duration": format_durasi(dur_sec),
+                    "size":     size_str,
+                    "play":     url,
+                    "hdplay":   url,
+                })
         else:
             ydl_opts = {
                 'format':      'bestvideo+bestaudio/best',
