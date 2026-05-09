@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -708,6 +708,100 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
 
 
 # =============================================================================
+# SPOTIFY ENGINE
+# Logika: scrape og:title + og:image dari halaman Spotify (tanpa API key),
+#         lalu search YouTube via yt-dlp (ytsearch:query) -> download bestaudio
+#         -> encode MP3 192k via ffmpeg. Terisolasi dari engine lain.
+# =============================================================================
+
+def spotify_scrape_metadata(spotify_url):
+    """
+    Scrape judul lagu/artis dan cover art dari halaman Spotify.
+    Pakai og:title dan og:image - tidak butuh API key.
+    Return: (search_query, display_title, cover_url)
+    """
+    try:
+        headers = {
+            'User-Agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/124.0.0.0 Safari/537.36'
+            )
+        }
+        resp = requests.get(spotify_url, headers=headers, timeout=15)
+        resp.raise_for_status()
+        html = resp.text
+
+        # Ambil og:title -> "Judul Lagu - Artis"
+        match = re.search(r'<meta\s+property="og:title"\s+content="([^"]+)"', html)
+        if match:
+            raw_title = match.group(1).strip()
+        else:
+            # Fallback ke <title>
+            match = re.search(r'<title>([^<]+)</title>', html)
+            if match:
+                raw_title = match.group(1).replace('| Spotify', '').replace('- Spotify', '').strip()
+            else:
+                raw_title = None
+
+        # Ambil og:image -> cover art album/lagu
+        cover_match = re.search(r'<meta\s+property="og:image"\s+content="([^"]+)"', html)
+        cover_url = cover_match.group(1).strip() if cover_match else None
+
+        if not raw_title:
+            logger.warning("[SPOTIFY] og:title tidak ditemukan di halaman Spotify.")
+            return None, None, None
+
+        logger.info(f"[SPOTIFY] Metadata OK: '{raw_title}' | cover: {'ada' if cover_url else '-'}")
+        return raw_title, raw_title, cover_url
+
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Scrape metadata gagal: {e}")
+        return None, None, None
+
+
+def spotify_download_mp3(search_query, out_mp3):
+    """
+    Search lagu di YouTube via yt-dlp (ytsearch:query),
+    download bestaudio, encode MP3 192k.
+    Persis seperti logika di Spotify.py tapi output ke file path bukan /sdcard.
+    """
+    ydl_opts = {
+        'format':        'bestaudio/best',
+        'outtmpl':       out_mp3 + '.%(ext)s',
+        'quiet':         True,
+        'no_warnings':   True,
+        'noplaylist':    True,
+        'postprocessors': [{
+            'key':              'FFmpegExtractAudio',
+            'preferredcodec':   'mp3',
+            'preferredquality': '192',
+        }],
+        'keepvideo': False,
+    }
+
+    logger.info(f"[SPOTIFY] Search + download: ytsearch:{search_query}")
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([f"ytsearch:{search_query}"])
+
+    # yt-dlp rename output ke out_mp3.mp3
+    expected = out_mp3 + '.mp3'
+    if os.path.exists(expected):
+        os.replace(expected, out_mp3)
+        logger.info(f"[SPOTIFY] Download selesai: {out_mp3}")
+    elif os.path.exists(out_mp3):
+        logger.info(f"[SPOTIFY] Download selesai (langsung): {out_mp3}")
+    else:
+        import glob
+        candidates = glob.glob(out_mp3 + '.*')
+        if candidates:
+            os.replace(candidates[0], out_mp3)
+            logger.info(f"[SPOTIFY] Download selesai (fallback rename): {out_mp3}")
+        else:
+            raise RuntimeError("Gagal mendownload audio dari YouTube, silakan coba lagi.")
+
+
+# =============================================================================
 # ROUTES
 # =============================================================================
 
@@ -798,6 +892,7 @@ SUPPORTED_PLATFORMS = [
     'youtube.com', 'youtu.be',
     'instagram.com', 'twitter.com', 'x.com',
     'facebook.com', 'fb.watch',
+    'open.spotify.com',
 ]
 
 def is_supported_url(url):
@@ -1060,6 +1155,7 @@ def mp3_progress_api():
     )
 
 
+
 @app.route('/api/get_mp3_file')
 def get_mp3_file_api():
     """Ambil file MP3 yang sudah selesai diproses via SSE."""
@@ -1297,6 +1393,116 @@ def fast_mp3_api():
         # FIX #6: Sembunyikan detail error dari user
         logger.error(f"fast_mp3 error: {e}")
         return "Terjadi kesalahan saat memproses audio. Silakan coba lagi.", 500
+
+# =============================================================================
+# SPOTIFY ROUTES
+# =============================================================================
+
+@app.route('/api/spotify_info', methods=['POST'])
+@limiter.limit('20 per minute')
+def spotify_info_api():
+    """
+    Preview info lagu Spotify - scrape metadata untuk ditampilin di frontend.
+    Return: title, cover_url, platform='spotify'
+    """
+    data        = request.get_json(force=True) or {}
+    spotify_url = data.get('url', '').strip()
+
+    if not spotify_url:
+        return jsonify({"status": "error", "msg": "URL kosong."}), 400
+
+    if not is_safe_external_url(spotify_url) or not is_supported_url(spotify_url):
+        return jsonify({"status": "error", "msg": "URL tidak valid atau bukan link Spotify."}), 400
+
+    search_query, display_title, cover_url = spotify_scrape_metadata(spotify_url)
+
+    if not search_query:
+        return jsonify({"status": "error", "msg": "Gagal membaca metadata lagu dari Spotify."}), 500
+
+    return jsonify({
+        "status":   "success",
+        "title":    display_title,
+        "cover":    cover_url or "",
+        "author":   "Spotify",
+        "platform": "spotify",
+        "query":    search_query,
+    })
+
+
+@app.route('/api/spotify_mp3', methods=['POST'])
+@limiter.limit('10 per minute')
+def spotify_mp3_api():
+    """
+    Download MP3 dari URL Spotify.
+    Flow: scrape metadata -> ytsearch via yt-dlp -> encode MP3 192k -> stream ke browser.
+    """
+    import tempfile
+
+    data        = request.get_json(force=True) or {}
+    spotify_url = data.get('url', '').strip()
+    title       = data.get('title', 'audio')
+
+    if not spotify_url:
+        return "URL kosong.", 400
+
+    if not is_safe_external_url(spotify_url) or not is_supported_url(spotify_url):
+        return "URL tidak valid atau bukan link Spotify.", 400
+
+    logger.info(f"[SPOTIFY] Request MP3: {mask_url(spotify_url)}")
+
+    try:
+        # Step 1: scrape metadata dari Spotify
+        search_query, display_title, _ = spotify_scrape_metadata(spotify_url)
+        if not search_query:
+            return "Gagal membaca metadata lagu dari Spotify. Coba lagi.", 500
+
+        final_title = display_title or title
+        logger.info(f"[SPOTIFY] Query YouTube: {search_query}")
+
+        # Step 2: download MP3 via ytsearch yt-dlp
+        _fd, tmp_base = tempfile.mkstemp(prefix='vinder_spotify_')
+        os.close(_fd)
+        os.remove(tmp_base)   # hapus dulu, spotify_download_mp3 yang buat
+
+        out_mp3 = tmp_base + '.mp3'
+        spotify_download_mp3(search_query, out_mp3)
+
+        if not os.path.exists(out_mp3):
+            return "Gagal memproses audio, silakan coba lagi.", 500
+
+        filename  = f"[Vinder].{safe_filename(final_title)}.mp3"
+        file_size = os.path.getsize(out_mp3)
+        logger.info(f"[SPOTIFY] Siap stream: {filename} ({file_size // 1024} KB)")
+
+        # Step 3: stream MP3 ke browser lalu hapus file temp
+        def generate_and_cleanup():
+            try:
+                with open(out_mp3, 'rb') as f:
+                    while True:
+                        chunk = f.read(512 * 1024)
+                        if not chunk:
+                            break
+                        yield chunk
+            finally:
+                try:
+                    os.remove(out_mp3)
+                except Exception:
+                    pass
+
+        return Response(
+            stream_with_context(generate_and_cleanup()),
+            headers={
+                'Content-Type':        'audio/mpeg',
+                'Content-Disposition': make_content_disposition(filename),
+                'Cache-Control':       'no-cache',
+                'Content-Length':      str(file_size),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"[SPOTIFY] spotify_mp3 error: {e}")
+        return "Terjadi kesalahan saat memproses audio Spotify. Silakan coba lagi.", 500
+
 
 # =============================================================================
 # DAILY HEALTH + AI MESSAGE
