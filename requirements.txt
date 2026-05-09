@@ -6,3 +6,4 @@ gevent
 gunicorn
 mutagen
 flask-limiter
+instaloader
