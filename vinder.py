@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-            # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+              # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1511,23 +1511,52 @@ def fast_mp3_api():
         else:
             # Non-TikTok (YouTube, Instagram, Facebook): pakai download_audio_ytdlp
             # extract_info + session.get gagal untuk YouTube karena signed URL
+            # FIX: hapus double extract_info — dulu panggil extract_info dua kali
+            # (sekali untuk title, sekali lagi di dalam download_audio_ytdlp).
+            # YouTube Shorts dengan ?si= param menyebabkan error/timeout karena hit dua kali.
+            # Sekarang: langsung download + ambil title via hook dalam satu proses.
             import tempfile as _tempfile
             _fd2, tmp_base2 = _tempfile.mkstemp(prefix='vinder_yt_')
             os.close(_fd2)
             os.remove(tmp_base2)
             out_mp3_yt = tmp_base2 + '.mp3'
 
-            ydl_info_opts = {
-                'format':      'bestaudio/best',
-                'quiet':       True,
-                'no_warnings': True,
-                'noplaylist':  True,
-            }
-            with yt_dlp.YoutubeDL(ydl_info_opts) as ydl:
-                info_yt     = ydl.extract_info(tiktok_url, download=False)
-                final_title = info_yt.get('title', title)
+            # Ambil title sekaligus download dalam satu yt-dlp session
+            _yt_title_holder = [title]
 
-            download_audio_ytdlp(tiktok_url, out_mp3_yt)
+            def _yt_title_hook(info_dict, **kwargs):
+                t = info_dict.get('title') or info_dict.get('fulltitle')
+                if t:
+                    _yt_title_holder[0] = t
+
+            ydl_opts_combined = {
+                'format':        'bestaudio/best',
+                'outtmpl':       out_mp3_yt + '.%(ext)s',
+                'quiet':         True,
+                'no_warnings':   True,
+                'noplaylist':    True,
+                'user_agent':    TIKTOK_UA,
+                'http_headers':  DEFAULT_HEADERS,
+                'postprocessors': [{\n                    'key':            'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '0',
+                }],
+                'keepvideo':     False,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_combined) as ydl:
+                ydl.add_post_hook(_yt_title_hook)
+                info_yt     = ydl.extract_info(tiktok_url, download=True)
+                final_title = (info_yt or {}).get('title') or _yt_title_holder[0] or title
+
+            # Rename output ke out_mp3_yt (tanpa ekstensi)
+            import glob as _glob
+            _expected = out_mp3_yt + '.mp3'
+            if os.path.exists(_expected):
+                os.replace(_expected, out_mp3_yt)
+            elif not os.path.exists(out_mp3_yt):
+                _candidates = _glob.glob(out_mp3_yt + '.*')
+                if _candidates:
+                    os.replace(_candidates[0], out_mp3_yt)
 
             if not os.path.exists(out_mp3_yt):
                 return "Gagal memproses audio, silakan coba lagi.", 500
@@ -1663,8 +1692,6 @@ def _ig_download_video_instaloader(url, out_mp4):
     logger.info(f"[IG] Download selesai: {out_mp4}")
 
 
-
-
 @app.route('/api/thumb')
 def thumb_proxy_api():
     """
@@ -1736,16 +1763,22 @@ def mp4_info_api():
                 'quiet':       True,
                 'no_warnings': True,
                 'noplaylist':  True,
+                # FIX: pastikan YouTube Shorts (?si=...) tidak error karena dianggap playlist
+                'extract_flat': False,
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
+                # FIX: pakai format_durasi (sama seperti Instagram) bukan raw string
+                dur_sec  = int(info.get('duration') or 0)
+                size_raw = info.get('filesize') or info.get('filesize_approx') or 0
+                size_str = f"{size_raw / 1024 / 1024:.2f}MB" if size_raw else "N/A"
                 return jsonify({
                     "status":   "success",
                     "title":    info.get('title', 'Video'),
                     "cover":    info.get('thumbnail'),
-                    "author":   info.get('uploader', 'Unknown'),
-                    "duration": str(info.get('duration', 0)) + 's',
-                    "size":     "N/A",
+                    "author":   info.get('uploader') or info.get('channel', 'Unknown'),
+                    "duration": format_durasi(dur_sec),
+                    "size":     size_str,
                     "play":     url,
                     "hdplay":   url,
                 })
