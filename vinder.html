@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                         .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                           .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-preview button {
       width: auto;
@@ -1188,7 +1188,7 @@
               <span class="res-opt-desc">Cocok untuk mengunduh video dengan resolusi tak terbatas</span>
             </div>
             <div class="res-divider"></div>
-                     <div class="res-option" onclick="pickRes('Url','720',this)">
+            <div class="res-option" onclick="pickRes('Url','720',this)">
               <span class="res-opt-title">720p</span>
               <span class="res-opt-desc">Kualitas standar HD</span>
             </div>
@@ -1347,7 +1347,7 @@
       <div class="modal-handle"></div>
       <div class="donate-header">
         <div class="donate-emoji">☕</div>
-        <div class="donate-title">Support ZakDev!</div>
+               <div class="donate-title">Support ZakDev!</div>
         <div class="donate-desc">Kalau Vinder bermanfaat buat lo,<br>traktir gw kopi biar semangat ngoding! 🔥</div>
       </div>
       <div class="donate-options">
@@ -1652,38 +1652,6 @@
   // Pakai /api/mp3_progress (SSE) + /api/get_mp3_file sesuai backend
 
   async function startMp3Background(url, title) {
-    const bubble = createBubble(title, true);
-    const filename = '[Vinder].' + title.replace(/[\/:\*?"<>|]/g, '').replace(/[#@]\S*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) + '.mp3';
-
-    // POST ke server - cover diambil dari frame tengah video di server
-    try {
-      const resp = await fetch('/api/fast_mp3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, title }),
-      });
-      if (!resp.ok) throw new Error('Server error ' + resp.status);
-
-      // Langsung eksekusi download begitu response datang - no delay
-      const blob = await resp.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
-      bubble.setSuccess();
-    } catch (e) {
-      console.error('[MP3] Download error:', e);
-    }
-  }
-
-  /* ===== SPOTIFY BACKGROUND SYSTEM ===== */
-  // Scrape metadata Spotify → search YouTube → download MP3 192k via /api/spotify_mp3
-
-  async function startSpotifyBackground(url, title) {
     const bubble = createBubble(title, true);
     const filename = '[Vinder].' + title.replace(/[\/:\*?"<>|]/g, '').replace(/[#@]\S*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) + '.mp3';
 
