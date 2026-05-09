@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                          .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                         .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-preview button {
       width: auto;
@@ -1188,7 +1188,7 @@
               <span class="res-opt-desc">Cocok untuk mengunduh video dengan resolusi tak terbatas</span>
             </div>
             <div class="res-divider"></div>
-            <div class="res-option" onclick="pickRes('Url','720',this)">
+                     <div class="res-option" onclick="pickRes('Url','720',this)">
               <span class="res-opt-title">720p</span>
               <span class="res-opt-desc">Kualitas standar HD</span>
             </div>
@@ -1272,7 +1272,7 @@
       </span>
       <span class="plat-badge">
         <span class="plat-dot" style="background:#1877f2;"></span>Facebook
-          </span>
+      </span>
       <span class="plat-badge">
         <span class="plat-dot" style="background:#1db954;"></span>Spotify
       </span>
@@ -1463,6 +1463,7 @@
     'youtube.com', 'youtu.be',
     'instagram.com',
     'facebook.com', 'fb.watch', 'fb.com',
+    'open.spotify.com',
   ];
 
   function isSupportedUrl(url) {
@@ -1479,6 +1480,7 @@
       if (host.includes('youtube.com') || host === 'youtu.be') return 'youtube';
       if (host.includes('instagram.com')) return 'instagram';
       if (host.includes('facebook.com') || host.includes('fb.watch') || host.includes('fb.com')) return 'facebook';
+      if (host.includes('open.spotify.com')) return 'spotify';
     } catch(e) {}
     return 'unknown';
   }
@@ -1498,7 +1500,7 @@
       setTimeout(() => { if (fmtToggle.style.opacity === '0') fmtToggle.style.display = 'none'; }, 350);
       if (url.startsWith('http') && !isSupportedUrl(url)) {
         const statusEl = document.getElementById('url-status');
-        statusEl.textContent = '❌ Platform tidak didukung. Gunakan link TikTok, YouTube, Instagram, atau Facebook.';
+        statusEl.textContent = '❌ Platform tidak didukung. Gunakan link TikTok, YouTube, Instagram, Facebook, atau Spotify.';
         statusEl.className = 'status-txt err';
       }
       return;
@@ -1518,8 +1520,16 @@
       const platform = detectPlatform(url);
       let data;
 
-      if (platform === 'tiktok') {
-        // TikTok: pakai /api/download_url (TikWM, cepat)
+      if (platform === 'spotify') {
+        // ── SPOTIFY: pakai /api/spotify_info ──
+        const resp = await fetch('/api/spotify_info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        data = await resp.json();
+      } else if (platform === 'tiktok') {
+        // ── TIKTOK: pakai /api/download_url (TikWM, cepat) ──
         const resp = await fetch('/api/download_url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1527,17 +1537,16 @@
         });
         data = await resp.json();
       } else {
-        // YouTube / Instagram / Facebook: pakai /api/mp4_info
+        // ── YOUTUBE / INSTAGRAM / FACEBOOK: pakai /api/mp4_info ──
         const resp = await fetch('/api/mp4_info', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
         });
         data = await resp.json();
-        // Normalisasi field supaya sama dgn TikTok response
         if (data.status === 'success') {
-          data.size  = data.size  || 'N/A';
-          data.play  = url;
+          data.size   = data.size  || 'N/A';
+          data.play   = url;
           data.hdplay = url;
         }
       }
@@ -1545,49 +1554,67 @@
       if (data.status === 'success') {
         currentPreviewData = data;
 
-        // Munculkan format toggle dengan animasi fade-in
-        const fmtToggle = document.getElementById('format-toggle');
-        fmtToggle.style.display = 'flex';
-        requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
+        const fmtToggle  = document.getElementById('format-toggle');
+        const btnMp4     = document.getElementById('fmt-mp4');
+        const btnMp3     = document.getElementById('fmt-mp3');
+
+        if (platform === 'spotify') {
+          // ── UI SPOTIFY: sembunyiin MP4, MP3 melebar full, auto pilih MP3 ──
+          btnMp4.style.display = 'none';
+          btnMp3.style.flex    = '1 1 100%';
+          selectFormat('mp3');
+          fmtToggle.style.display = 'flex';
+          requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
+        } else {
+          // ── UI NORMAL: kembalikan MP4 kalau sebelumnya Spotify ──
+          btnMp4.style.display = '';
+          btnMp3.style.flex    = '1';
+          fmtToggle.style.display = 'flex';
+          requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
+        }
 
         // ── Normalisasi field frontend ──
-        const platformLabels = { tiktok:'TikTok', youtube:'YouTube', instagram:'Instagram', facebook:'Facebook' };
+        const platformLabels = {
+          tiktok: 'TikTok', youtube: 'YouTube',
+          instagram: 'Instagram', facebook: 'Facebook', spotify: 'Spotify'
+        };
 
-        // Author: kalau isinya domain/URL, ganti ke nama platform
         let authorLabel = data.author || '';
         if (!authorLabel || /https?:\/\/|www\.|\.(com|net|org|id)/.test(authorLabel)) {
           authorLabel = platformLabels[platform] || platform;
         }
 
-        // Durasi: kalau 0m00s atau - atau kosong -> tampil '-' (atau 'Time' khusus Facebook)
-        let durLabel = (data.duration && data.duration !== '0m00s' && data.duration !== '-')
+        let durLabel  = (data.duration && data.duration !== '0m00s' && data.duration !== '-')
           ? data.duration : (platform === 'facebook' ? 'Time' : '-');
-
-        // Size
         let sizeLabel = (data.size && data.size !== 'N/A') ? data.size : (platform === 'facebook' ? 'Size' : 'N/A');
 
-        // Thumbnail: fallback ke icon platform kalau kosong/error
         const platformIcons = {
           youtube:   'https://www.youtube.com/favicon.ico',
           instagram: 'https://www.instagram.com/favicon.ico',
           facebook:  'https://www.facebook.com/favicon.ico',
           tiktok:    'https://www.tiktok.com/favicon.ico',
+          spotify:   'https://open.spotify.com/favicon.ico',
         };
+
         const rawThumb = data.cover || '';
         const thumbSrc = (platform === 'instagram' && rawThumb)
           ? '/api/thumb?url=' + encodeURIComponent(rawThumb)
           : (rawThumb || platformIcons[platform] || '');
+
+        // Label khusus Spotify: ganti ⏱ & 💾 jadi badge hijau platform
+        const metaExtra = platform === 'spotify'
+          ? `<span class="meta-tag" style="color:#1db954; border-color:#1db954;">🎵 Spotify</span>`
+          : `<span class="meta-tag">⏱ ${durLabel}</span><span class="meta-tag">💾 ${sizeLabel}</span>`;
 
         container.innerHTML = `
           <div class="preview-card">
             <img src="${thumbSrc}" class="preview-thumb"
               onerror="this.src='${platformIcons[platform] || ''}'; this.onerror=null;">
             <div class="preview-info">
-              <div class="preview-title">${data.title || 'Video'}</div>
+              <div class="preview-title">${data.title || (platform === 'spotify' ? 'Lagu Spotify' : 'Video')}</div>
               <div class="preview-meta">
                 <span class="meta-tag">👤 ${authorLabel}</span>
-                <span class="meta-tag">⏱ ${durLabel}</span>
-                <span class="meta-tag">💾 ${sizeLabel}</span>
+                ${metaExtra}
               </div>
             </div>
             <div style="color:var(--accent); font-size:18px;">⬇️</div>
@@ -1595,12 +1622,15 @@
         `;
         btnDl.disabled = false;
         btnDl.textContent = selectedFormat === 'mp3' ? '⬇ Download MP3' : '⬇ Download MP4';
+
       } else {
         container.style.display = 'none';
         btnDl.disabled = false;
         btnDl.textContent = 'Download Langsung';
         currentPreviewData = null;
-        // Tetap munculkan format toggle meski data gagal
+        // Kembalikan tombol normal kalau error
+        document.getElementById('fmt-mp4').style.display = '';
+        document.getElementById('fmt-mp3').style.flex    = '1';
         const fmtToggle = document.getElementById('format-toggle');
         fmtToggle.style.display = 'flex';
         requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
@@ -1610,7 +1640,8 @@
       btnDl.disabled = false;
       btnDl.textContent = 'Download Langsung';
       currentPreviewData = null;
-      // Tetap munculkan format toggle meski preview gagal
+      document.getElementById('fmt-mp4').style.display = '';
+      document.getElementById('fmt-mp3').style.flex    = '1';
       const fmtToggle = document.getElementById('format-toggle');
       fmtToggle.style.display = 'flex';
       requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
@@ -1646,6 +1677,69 @@
       bubble.setSuccess();
     } catch (e) {
       console.error('[MP3] Download error:', e);
+    }
+  }
+
+  /* ===== SPOTIFY BACKGROUND SYSTEM ===== */
+  // Scrape metadata Spotify → search YouTube → download MP3 192k via /api/spotify_mp3
+
+  async function startSpotifyBackground(url, title) {
+    const bubble = createBubble(title, true);
+    const filename = '[Vinder].' + title.replace(/[\/:\*?"<>|]/g, '').replace(/[#@]\S*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) + '.mp3';
+
+    // POST ke server - cover diambil dari frame tengah video di server
+    try {
+      const resp = await fetch('/api/fast_mp3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, title }),
+      });
+      if (!resp.ok) throw new Error('Server error ' + resp.status);
+
+      // Langsung eksekusi download begitu response datang - no delay
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+      bubble.setSuccess();
+    } catch (e) {
+      console.error('[MP3] Download error:', e);
+    }
+  }
+
+  /* ===== SPOTIFY BACKGROUND SYSTEM ===== */
+  // Scrape metadata Spotify → search YouTube → download MP3 192k via /api/spotify_mp3
+
+  async function startSpotifyBackground(url, title) {
+    const bubble = createBubble(title, true);
+    const filename = '[Vinder].' + title.replace(/[\/:\*?"<>|]/g, '').replace(/[#@]\S*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) + '.mp3';
+
+    try {
+      const resp = await fetch('/api/spotify_mp3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, title }),
+      });
+      if (!resp.ok) throw new Error('Server error ' + resp.status);
+
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+      bubble.setSuccess();
+    } catch (e) {
+      bubble.setError('Gagal download Spotify: ' + e.message);
+      console.error('[SPOTIFY] Download error:', e);
     }
   }
 
@@ -1835,14 +1929,24 @@
     // Validasi platform yang didukung
     if (!isSupportedUrl(url)) {
       const statusEl = document.getElementById('url-status');
-      statusEl.textContent = '❌ Platform tidak didukung. Gunakan link TikTok, YouTube, Instagram, atau Facebook.';
+      statusEl.textContent = '❌ Platform tidak didukung. Gunakan link TikTok, YouTube, Instagram, Facebook, atau Spotify.';
       statusEl.className = 'status-txt err';
       return;
     }
 
     const resolution = resSelected['Url'];
+    const platform   = detectPlatform(url);
 
-    // MP3 mode → background job langsung
+    // ── SPOTIFY: selalu MP3, hit /api/spotify_mp3 ──
+    if (platform === 'spotify') {
+      const title = (currentPreviewData && lastUrl === url)
+        ? currentPreviewData.title
+        : 'Spotify Audio';
+      startSpotifyBackground(url, title);
+      return;
+    }
+
+    // ── MP3 mode (non-Spotify) → background job langsung ──
     if (selectedFormat === 'mp3') {
       const title = (currentPreviewData && lastUrl === url)
         ? currentPreviewData.title
@@ -1851,8 +1955,7 @@
       return;
     }
 
-    // MP4 mode
-    const platform = detectPlatform(url);
+    // ── MP4 mode ──
     const btn = document.getElementById('btn-dlurl');
 
     if (platform === 'tiktok') {
