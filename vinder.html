@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                            .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                           .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-preview button {
       width: auto;
@@ -1308,7 +1308,7 @@
       </div>
       <div class="footer-links">
         <a class="footer-link" onclick="openFeedbackModal()">Feedback</a>
-              <a class="footer-link donate-link" onclick="openDonateModal()">Donate </a>
+        <a class="footer-link donate-link" onclick="openDonateModal()">Donate </a>
         <a class="footer-link" href="#" onclick="showChangelog(); return false;">Changelog</a>
       </div>
     </div>
@@ -1322,7 +1322,7 @@
 
   <!-- ===== FAB GROUP (Donate + Feedback) ===== -->
   <div class="fab-group">
-    <button class="fab-donate" onclick="openModal()">
+    <button class="fab-donate" onclick="openDonateModal()">
       <span class="donate-icon">☕
     </button>
     <button class="fab-feedback" onclick="openFeedbackModal()" title="Kirim Saran">
@@ -1769,6 +1769,7 @@
     const bar = el.querySelector('#' + barId);
     const sub = el.querySelector('.dl-bubble-sub');
 
+    
     // Sequence teks progress untuk MP3 — manipulasi persepsi waktu
     let stepTimer = null;
     if (isBg) {
