@@ -1510,54 +1510,17 @@ def fast_mp3_api():
 
         else:
             # Non-TikTok (YouTube, Instagram, Facebook): pakai download_audio_ytdlp
-            # extract_info + session.get gagal untuk YouTube karena signed URL
-            # FIX: hapus double extract_info — dulu panggil extract_info dua kali
-            # (sekali untuk title, sekali lagi di dalam download_audio_ytdlp).
-            # YouTube Shorts dengan ?si= param menyebabkan error/timeout karena hit dua kali.
-            # Sekarang: langsung download + ambil title via hook dalam satu proses.
             import tempfile as _tempfile
             _fd2, tmp_base2 = _tempfile.mkstemp(prefix='vinder_yt_')
             os.close(_fd2)
             os.remove(tmp_base2)
             out_mp3_yt = tmp_base2 + '.mp3'
 
-            # Ambil title sekaligus download dalam satu yt-dlp session
-            _yt_title_holder = [title]
+            with yt_dlp.YoutubeDL({'format': 'bestaudio/best', 'quiet': True, 'no_warnings': True, 'noplaylist': True}) as ydl:
+                info_yt     = ydl.extract_info(tiktok_url, download=False)
+                final_title = (info_yt or {}).get('title', title)
 
-            def _yt_title_hook(info_dict, **kwargs):
-                t = info_dict.get('title') or info_dict.get('fulltitle')
-                if t:
-                    _yt_title_holder[0] = t
-
-            ydl_opts_combined = {
-                'format':        'bestaudio/best',
-                'outtmpl':       out_mp3_yt + '.%(ext)s',
-                'quiet':         True,
-                'no_warnings':   True,
-                'noplaylist':    True,
-                'user_agent':    TIKTOK_UA,
-                'http_headers':  DEFAULT_HEADERS,
-                'postprocessors': [{
-                    'key':            'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '0',
-                }],
-                'keepvideo':     False,
-            }
-            with yt_dlp.YoutubeDL(ydl_opts_combined) as ydl:
-                ydl.add_post_hook(_yt_title_hook)
-                info_yt     = ydl.extract_info(tiktok_url, download=True)
-                final_title = (info_yt or {}).get('title') or _yt_title_holder[0] or title
-
-            # Rename output ke out_mp3_yt (tanpa ekstensi)
-            import glob as _glob
-            _expected = out_mp3_yt + '.mp3'
-            if os.path.exists(_expected):
-                os.replace(_expected, out_mp3_yt)
-            elif not os.path.exists(out_mp3_yt):
-                _candidates = _glob.glob(out_mp3_yt + '.*')
-                if _candidates:
-                    os.replace(_candidates[0], out_mp3_yt)
+            download_audio_ytdlp(tiktok_url, out_mp3_yt)
 
             if not os.path.exists(out_mp3_yt):
                 return "Gagal memproses audio, silakan coba lagi.", 500
@@ -1643,8 +1606,7 @@ def _ig_get_info_instaloader(url):
         'title':        (post.caption or '').replace('\n', ' ')[:80] or f'Instagram {post.shortcode}',
         'cover':        post.url,
         'author':       post.owner_username,
-        'duration_sec': 
-int(post.video_duration or 0),
+        'duration_sec': int(post.video_duration or 0),
         'is_video':     post.is_video,
         'shortcode':    shortcode,
     }
