@@ -1226,7 +1226,7 @@
 
   </div>
 
-  <!-- ===== FEATURES SECTION ===== -->
+ <!-- ===== FEATURES SECTION ===== -->
   <section class="features-section">
 
     <h2 class="features-heading">Cepat, Gratis, Tanpa Batas</h2>
@@ -1347,7 +1347,7 @@
       <div class="modal-handle"></div>
       <div class="donate-header">
         <div class="donate-emoji">☕</div>
-               <div class="donate-title">Support ZakDev!</div>
+        <div class="donate-title">Support ZakDev!</div>
         <div class="donate-desc">Kalau Vinder bermanfaat buat lo,<br>traktir gw kopi biar semangat ngoding! 🔥</div>
       </div>
       <div class="donate-options">
@@ -1439,6 +1439,9 @@
       document.getElementById('btn-dlurl').textContent = 'Download Langsung';
       lastUrl = '';
       currentPreviewData = null;
+      const fmtToggle = document.getElementById('format-toggle');
+      fmtToggle.style.opacity = '0';
+      setTimeout(() => { fmtToggle.style.display = 'none'; }, 350);
     }
   }
 
@@ -1448,6 +1451,14 @@
     if (btn) btn.style.display = el.value ? 'block' : 'none';
     if (id === 'dl-url' && el.value.startsWith('http')) {
       setTimeout(() => autoPreview(el.value), 500);
+    } else if (id === 'dl-url' && !el.value) {
+      document.getElementById('url-preview-container').style.display = 'none';
+      document.getElementById('btn-dlurl').textContent = 'Download Langsung';
+      lastUrl = '';
+      currentPreviewData = null;
+      const fmtToggle = document.getElementById('format-toggle');
+      fmtToggle.style.opacity = '0';
+      setTimeout(() => { fmtToggle.style.display = 'none'; }, 350);
     }
   }
 
