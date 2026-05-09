@@ -1508,6 +1508,46 @@ def fast_mp3_api():
             audio_url   = vid_url
             final_title = tikwm_title or title
 
+            if not audio_url:
+                return "Gagal mengambil URL audio dari TikTok.", 500
+
+            _fd, tmp_base = tempfile.mkstemp(prefix='vinder_fast_')
+            os.close(_fd)
+            os.remove(tmp_base)
+            out_mp3 = tmp_base + '.mp3'
+
+            download_audio_direct(audio_url, out_mp3)
+
+            if not os.path.exists(out_mp3):
+                return "Gagal memproses audio, silakan coba lagi.", 500
+
+            filename  = f"[Vinder].{safe_filename(final_title)}.mp3"
+            file_size = os.path.getsize(out_mp3)
+
+            def generate_tiktok_mp3():
+                try:
+                    with open(out_mp3, 'rb') as f:
+                        while True:
+                            chunk = f.read(512 * 1024)
+                            if not chunk:
+                                break
+                            yield chunk
+                finally:
+                    try:
+                        os.remove(out_mp3)
+                    except Exception:
+                        pass
+
+            return Response(
+                stream_with_context(generate_tiktok_mp3()),
+                headers={
+                    'Content-Type':        'audio/mpeg',
+                    'Content-Disposition': make_content_disposition(filename),
+                    'Cache-Control':       'no-cache',
+                    'Content-Length':      str(file_size),
+                }
+            )
+
         else:
             # Non-TikTok (YouTube, Instagram, Facebook): pakai download_audio_ytdlp
             import tempfile as _tempfile
@@ -1588,6 +1628,36 @@ def _ig_get_info_instaloader(url):
     Return dict info atau raise Exception.
     """
     import instaloader
+    shortcode = _ig_parse_shortcode(url)
+    if not shortcode:
+        raise ValueError("Shortcode Instagram tidak ditemukan di URL.")
+
+    loader = instaloader.Instaloader(
+        download_videos=False,
+        download_video_thumbnails=False,
+        download_geotags=False,
+        download_comments=False,
+        save_metadata=False,
+        compress_json=False,
+        quiet=True,
+    )
+    post = instaloader.Post.from_shortcode(loader.context, shortcode)
+    return {
+        'title':        (post.caption or '').replace('\n', ' ')[:80] or f'Instagram {post.shortcode}',
+        'cover':        post.url,
+        'author':       post.owner_username,
+        'duration_sec': int(post.video_duration or 0),
+        'is_video':     post.is_video,
+        'shortcode':    shortcode,
+    }
+
+
+def _ig_download_video_instaloader(url, out_mp4):
+    """
+    Download video Instagram ke out_mp4 via instaloader.
+    Tiru dl_post() di igG.py: download ke tmp dir, lalu move file mp4.
+    """
+    import instaloader, shutil, glob as _glob
     shortcode = _ig_parse_shortcode(url)
     if not shortcode:
         raise ValueError("Shortcode Instagram tidak ditemukan di URL.")
