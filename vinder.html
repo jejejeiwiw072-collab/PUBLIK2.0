@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                            .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                           .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-preview button {
       width: auto;
@@ -1347,10 +1347,10 @@
       <div class="modal-handle"></div>
       <div class="donate-header">
         <div class="donate-emoji">☕</div>
-        <div class="donate-title">Support ZakDev!</div>
+                <div class="donate-title">Support ZakDev!</div>
         <div class="donate-desc">Kalau Vinder bermanfaat buat lo,<br>traktir gw kopi biar semangat ngoding! 🔥</div>
       </div>
-            <div class="donate-options">
+      <div class="donate-options">
         <a class="donate-option" href="https://saweria.co/zakdev" target="_blank">
                   <div class="donate-opt-icon" style="background:#1a1208;">🧡</div>
           <div class="donate-opt-info">
@@ -1673,7 +1673,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, title }),
       });
-      if (!resp.ok) throw new Error('Server error ' + resp.status);
+      // FIX: baca error text dari server supaya bisa ditampilkan ke bubble
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => 'Server error ' + resp.status);
+        throw new Error(errText || 'Server error ' + resp.status);
+      }
 
       // Langsung eksekusi download begitu response datang - no delay
       const blob = await resp.blob();
@@ -1687,7 +1691,9 @@
       setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
       bubble.setSuccess();
     } catch (e) {
+      // FIX: tampilkan error ke bubble (sebelumnya hanya console.error, bubble hilang tanpa feedback)
       console.error('[MP3] Download error:', e);
+      bubble.setError(e.message || 'Gagal memproses audio, silakan coba lagi.');
     }
   }
 
@@ -1832,7 +1838,7 @@
     return `/api/get_video?url=${encodeURIComponent(vUrl)}&title=${encodeURIComponent(v.title)}&mode=${encodeURIComponent(resolution)}&format=${selectedFormat}&nocache=${t}`;
   }
 
-  /* ===== SEARCH ===== */
+    /* ===== SEARCH ===== */
   async function doSearch() {
     const kw = document.getElementById('kw').value.trim();
     if (!kw) return;
