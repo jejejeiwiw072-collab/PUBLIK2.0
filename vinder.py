@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -753,13 +753,31 @@ def spotify_get_cover(url):
     return None
 
 
-def spotify_download_mp3(query, out_mp3):
+def _spotify_finalize_output(out_mp3):
     """
-    Download audio dari YouTube via ytsearch.
-    Tiru download_audio() di Spotify.py persis — ytsearch:query, bestaudio, MP3 192k.
-    Output ke out_mp3 (bukan /sdcard).
+    Cek dan rename output yt-dlp ke out_mp3.
+    Return True kalau file berhasil ditemukan, False kalau tidak.
     """
-    ydl_opts = {
+    import glob
+    expected = out_mp3 + '.mp3'
+    if os.path.exists(expected):
+        os.replace(expected, out_mp3)
+        logger.info(f"[SPOTIFY] Download selesai: {out_mp3}")
+        return True
+    if os.path.exists(out_mp3):
+        logger.info(f"[SPOTIFY] Download selesai (langsung): {out_mp3}")
+        return True
+    candidates = glob.glob(out_mp3 + '.*')
+    if candidates:
+        os.replace(candidates[0], out_mp3)
+        logger.info(f"[SPOTIFY] Download selesai (fallback rename): {out_mp3}")
+        return True
+    return False
+
+
+def _build_ytdlp_opts_base(out_mp3):
+    """Base yt-dlp opts yang dipakai semua strategi Spotify."""
+    return {
         'format': 'bestaudio/best',
         'outtmpl': out_mp3 + '.%(ext)s',
         'postprocessors': [{
@@ -769,25 +787,124 @@ def spotify_download_mp3(query, out_mp3):
         }],
         'quiet': True,
         'no_warnings': True,
+        'noplaylist': True,
+        # Retry otomatis kalau fragment gagal
+        'retries': 5,
+        'fragment_retries': 5,
+        'skip_unavailable_fragments': True,
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([f"ytsearch:{query}"])
 
-    # yt-dlp rename output jadi out_mp3.mp3
-    expected = out_mp3 + '.mp3'
-    if os.path.exists(expected):
-        os.replace(expected, out_mp3)
-        logger.info(f"[SPOTIFY] Download selesai: {out_mp3}")
-    elif os.path.exists(out_mp3):
-        logger.info(f"[SPOTIFY] Download selesai (langsung): {out_mp3}")
-    else:
-        import glob
-        candidates = glob.glob(out_mp3 + '.*')
-        if candidates:
-            os.replace(candidates[0], out_mp3)
-            logger.info(f"[SPOTIFY] Download selesai (fallback rename): {out_mp3}")
-        else:
-            raise RuntimeError("Gagal mendownload audio dari YouTube.")
+
+def spotify_download_mp3(query, out_mp3):
+    """
+    Download audio dari YouTube via ytsearch dengan multi-strategy fallback.
+
+    Strategi (dijalankan urutan):
+    1. youtube_music ytsearch via web client (paling ringan, bypass 403)
+    2. YouTube reguler ytsearch via tv_embedded client (sering lolos 403)
+    3. YouTube reguler ytsearch via mweb client (fallback)
+    4. SoundCloud sebagai last-resort
+
+    HTTP 403 dari YouTube biasanya karena:
+    - player client default (android/ios) kena bot-detection
+    - Tidak ada cookies / PO token
+    Solusi: pakai player_client alternatif yang lebih longgar rate-limit-nya.
+    """
+    import glob
+
+    base_opts = _build_ytdlp_opts_base(out_mp3)
+
+    # =========================================================
+    # Strategi 1: YouTube Music via web client
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 1 — YouTube Music web client: {query}")
+    try:
+        opts1 = {
+            **base_opts,
+            'default_search': 'ytsearch',
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['web'],
+                                        'player_skip': ['webpage'],
+                }
+            },
+        }
+        with yt_dlp.YoutubeDL(opts1) as ydl:
+            ydl.download([f"https://music.youtube.com/search?q={requests.utils.quote(query)}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 1 gagal: {e}")
+
+    # Bersihkan file gagal sebelum retry
+    for f in glob.glob(out_mp3 + '.*'):
+        try: os.remove(f)
+        except Exception: pass
+
+    # =========================================================
+    # Strategi 2: YouTube biasa — tv_embedded client (bypass 403)
+    # tv_embedded tidak kena bot check yang sama dengan android/web biasa
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 2 — YouTube tv_embedded client: {query}")
+    try:
+        opts2 = {
+            **base_opts,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['tv_embedded', 'web'],
+                }
+            },
+        }
+        with yt_dlp.YoutubeDL(opts2) as ydl:
+            ydl.download([f"ytsearch1:{query}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 2 gagal: {e}")
+
+    for f in glob.glob(out_mp3 + '.*'):
+        try: os.remove(f)
+        except Exception: pass
+
+    # =========================================================
+    # Strategi 3: YouTube biasa — mweb client
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 3 — YouTube mweb client: {query}")
+    try:
+        opts3 = {
+            **base_opts,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['mweb'],
+                }
+            },
+        }
+        with yt_dlp.YoutubeDL(opts3) as ydl:
+            ydl.download([f"ytsearch1:{query}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 3 gagal: {e}")
+
+    for f in glob.glob(out_mp3 + '.*'):
+        try: os.remove(f)
+        except Exception: pass
+
+    # =========================================================
+    # Strategi 4: SoundCloud sebagai last-resort
+    # SoundCloud tidak butuh auth, tapi kualitas/ketersediaan lagu beda
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 4 — SoundCloud last-resort: {query}")
+    try:
+        opts4 = {**base_opts}
+        with yt_dlp.YoutubeDL(opts4) as ydl:
+            ydl.download([f"scsearch1:{query}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 4 (SoundCloud) gagal: {e}")
+
+    raise RuntimeError("Gagal mendownload audio. YouTube mungkin sedang blokir request. Coba lagi nanti.")
 
 
 # =============================================================================
