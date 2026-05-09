@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+       # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -825,7 +825,7 @@ def spotify_download_mp3(query, out_mp3):
             'extractor_args': {
                 'youtube': {
                     'player_client': ['web'],
-                                        'player_skip': ['webpage'],
+                    'player_skip': ['webpage'],
                 }
             },
         }
@@ -1597,6 +1597,302 @@ def fast_mp3_api():
         # FIX #6: Sembunyikan detail error dari user
         logger.error(f"fast_mp3 error: {e}")
         return "Terjadi kesalahan saat memproses audio. Silakan coba lagi.", 500
+
+# =============================================================================
+# INSTAGRAM / YOUTUBE / FACEBOOK — MP4 INFO & DOWNLOAD
+# Mekanisme igG.py: instaloader untuk Instagram (post/reel/igtv)
+# yt-dlp untuk YouTube & Facebook
+# =============================================================================
+
+def _ig_parse_shortcode(url):
+    """
+    Ekstrak shortcode dari URL Instagram post/reel/igtv.
+    Tiru parse_url() di igG.py — strip query string & trailing slash dulu.
+    Return shortcode string atau None.
+    """
+    url = url.strip().split('?')[0].rstrip('/')
+    for pattern in [
+        r'instagram\.com/p/([\w\-]+)',
+        r'instagram\.com/reel/([\w\-]+)',
+        r'instagram\.com/tv/([\w\-]+)',
+    ]:
+        m = re.search(pattern, url)
+        if m:
+            return m.group(1)
+    return None
+
+
+def _ig_get_info_instaloader(url):
+    """
+    Ambil metadata video Instagram via instaloader (tanpa download file).
+    Tiru logika dl_post() di igG.py tapi hanya ambil info, tidak simpan file.
+    Return dict info atau raise Exception.
+    """
+    import instaloader
+    shortcode = _ig_parse_shortcode(url)
+    if not shortcode:
+        raise ValueError("Shortcode Instagram tidak ditemukan di URL.")
+
+    loader = instaloader.Instaloader(
+        download_videos=False,
+        download_video_thumbnails=False,
+        download_geotags=False,
+        download_comments=False,
+        save_metadata=False,
+        compress_json=False,
+        quiet=True,
+    )
+    post = instaloader.Post.from_shortcode(loader.context, shortcode)
+    return {
+        'title':    (post.caption or '').replace('\n', ' ')[:80] or f'Instagram {post.shortcode}',
+        'cover':    post.url,  #thumbnail/cover image URL
+        'author':   post.owner_username,
+        'duration': str(post.video_duration or 0) + 's',
+        'is_video': post.is_video,
+        'shortcode': shortcode,
+    }
+
+
+def _ig_download_video_instaloader(url, out_mp4):
+    """
+    Download video Instagram ke out_mp4 via instaloader.
+    Tiru dl_post() di igG.py: download ke tmp dir, lalu move file mp4.
+    """
+    import instaloader, shutil, glob as _glob
+    shortcode = _ig_parse_shortcode(url)
+    if not shortcode:
+        raise ValueError("Shortcode Instagram tidak ditemukan di URL.")
+
+    tmp_dir = out_mp4 + '_ig_tmp'
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    loader = instaloader.Instaloader(
+        download_videos=True,
+        download_video_thumbnails=False,
+        download_geotags=False,
+        download_comments=False,
+        save_metadata=False,
+        compress_json=False,
+        post_metadata_txt_pattern='',
+        filename_pattern='{shortcode}',
+        quiet=True,
+    )
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_dir)
+    try:
+        post = instaloader.Post.from_shortcode(loader.context, shortcode)
+        loader.download_post(post, target=tmp_dir)
+    finally:
+        os.chdir(old_cwd)
+
+    # Cari file .mp4 hasil download (tiru move_media() di igG.py)
+    mp4_files = _glob.glob(os.path.join(tmp_dir, '**', '*.mp4'), recursive=True)
+    if not mp4_files:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise RuntimeError("File MP4 tidak ditemukan setelah download Instagram.")
+
+    shutil.move(mp4_files[0], out_mp4)
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+    logger.info(f"[IG] Download selesai: {out_mp4}")
+
+
+@app.route('/api/thumb')
+def thumb_proxy_api():
+    """
+    Proxy thumbnail Instagram — hindari CORS block di browser.
+    Frontend kirim: /api/thumb?url=<encoded_image_url>
+    """
+    img_url = request.args.get('url', '').strip()
+    if not img_url or not is_safe_external_url(img_url):
+        return '', 400
+    try:
+        r = session.get(img_url, timeout=10, stream=True)
+        content_type = r.headers.get('Content-Type', 'image/jpeg')
+        return Response(r.content, headers={'Content-Type': content_type, 'Cache-Control': 'public, max-age=3600'})
+    except Exception as e:
+        logger.warning(f"[THUMB] Gagal proxy thumbnail: {e}")
+        return '', 502
+
+
+
+@limiter.limit('20 per minute')
+def mp4_info_api():
+    """
+    Preview info video untuk YouTube / Instagram / Facebook.
+    Instagram: pakai instaloader (mekanisme igG.py).
+    YouTube / Facebook: pakai yt-dlp extract_info.
+    """
+    data = request.get_json(force=True) or {}
+    url  = data.get('url', '').strip()
+
+    if not url:
+        return jsonify({"status": "error", "msg": "URL kosong."}), 400
+
+    if not is_safe_external_url(url) or not is_supported_url(url):
+        return jsonify({"status": "error", "msg": "URL tidak valid atau platform tidak didukung."}), 400
+
+    logger.info(f"[MP4INFO] Request: {mask_url(url)}")
+
+    try:
+        is_ig = 'instagram.com' in url
+
+        if is_ig:
+            info = _ig_get_info_instaloader(url)
+            return jsonify({
+                "status":   "success",
+                "title":    info['title'],
+                "cover":    '/api/thumb?url=' + requests.utils.quote(info['cover']),
+                "author":   info['author'],
+                "duration": info['duration'],
+                "size":     "N/A",
+                "play":     url,
+                "hdplay":   url,
+            })
+        else:
+            ydl_opts = {
+                'format':      'bestvideo+bestaudio/best',
+                'quiet':       True,
+                'no_warnings': True,
+                'noplaylist':  True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                return jsonify({
+                    "status":   "success",
+                    "title":    info.get('title', 'Video'),
+                    "cover":    info.get('thumbnail'),
+                    "author":   info.get('uploader', 'Unknown'),
+                    "duration": str(info.get('duration', 0)) + 's',
+                    "size":     "N/A",
+                    "play":     url,
+                    "hdplay":   url,
+                })
+
+    except Exception as e:
+        logger.error(f"[MP4INFO] Error: {e}")
+        return jsonify({"status": "error", "msg": "Gagal membaca info video. Coba lagi."}), 500
+
+
+@app.route('/api/download_mp4', methods=['POST'])
+@limiter.limit('10 per minute')
+def download_mp4_api():
+    """
+    Download MP4 untuk YouTube / Instagram / Facebook.
+    Instagram: pakai instaloader (mekanisme igG.py), stream file ke browser.
+    YouTube / Facebook: pakai yt-dlp, stream file ke browser.
+    """
+    import tempfile
+    data    = request.get_json(force=True) or {}
+    url     = data.get('url', '').strip()
+    quality = data.get('quality', 'best')
+    title   = data.get('title', 'video')
+
+    if not url:
+        return jsonify({"status": "error", "msg": "URL kosong."}), 400
+
+    if not is_safe_external_url(url) or not is_supported_url(url):
+        return jsonify({"status": "error", "msg": "URL tidak valid atau platform tidak didukung."}), 400
+
+    logger.info(f"[MP4DL] Request: {mask_url(url)} | quality={quality}")
+
+    is_ig = 'instagram.com' in url
+
+    try:
+        if is_ig:
+            # ── INSTAGRAM: download via instaloader (igG.py mechanism) ──
+            _fd, tmp_base = tempfile.mkstemp(prefix='vinder_ig_')
+            os.close(_fd)
+            os.remove(tmp_base)
+            out_mp4 = tmp_base + '.mp4'
+
+            _ig_download_video_instaloader(url, out_mp4)
+
+            if not os.path.exists(out_mp4):
+                return jsonify({"status": "error", "msg": "Gagal download video Instagram."}), 500
+
+            filename  = f"[Vinder].{safe_filename(title)}.mp4"
+            file_size = os.path.getsize(out_mp4)
+            logger.info(f"[IG] Siap stream: {filename} ({file_size // 1024} KB)")
+
+            def generate_ig():
+                try:
+                    with open(out_mp4, 'rb') as f:
+                        while True:
+                            chunk = f.read(512 * 1024)
+                            if not chunk:
+                                break
+                            yield chunk
+                finally:
+                    try:
+                        os.remove(out_mp4)
+                    except Exception:
+                        pass
+
+            return Response(
+                stream_with_context(generate_ig()),
+                headers={
+                    'Content-Type':        'video/mp4',
+                    'Content-Disposition': make_content_disposition(filename),
+                    'Cache-Control':       'no-cache',
+                    'Content-Length':      str(file_size),
+                }
+            )
+
+        else:
+            # ── YOUTUBE / FACEBOOK: download via yt-dlp ──
+            fmt = 'bestvideo+bestaudio/best' if quality == 'best' else 'bestvideo[height<=480]+bestaudio/best[height<=480]'
+            _fd, tmp_base = tempfile.mkstemp(prefix='vinder_mp4_')
+            os.close(_fd)
+            os.remove(tmp_base)
+            out_mp4 = tmp_base + '.mp4'
+
+            ydl_opts = {
+                'format':    fmt,
+                'outtmpl':   out_mp4,
+                'quiet':     True,
+                'no_warnings': True,
+                'noplaylist':  True,
+                'merge_output_format': 'mp4',
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+
+            if not os.path.exists(out_mp4):
+                return jsonify({"status": "error", "msg": "Gagal download video."}), 500
+
+            filename  = f"[Vinder].{safe_filename(title)}.mp4"
+            file_size = os.path.getsize(out_mp4)
+            logger.info(f"[MP4DL] Siap stream: {filename} ({file_size // 1024} KB)")
+
+            def generate_mp4():
+                try:
+                    with open(out_mp4, 'rb') as f:
+                        while True:
+                            chunk = f.read(512 * 1024)
+                            if not chunk:
+                                break
+                            yield chunk
+                finally:
+                    try:
+                        os.remove(out_mp4)
+                    except Exception:
+                        pass
+
+            return Response(
+                stream_with_context(generate_mp4()),
+                headers={
+                    'Content-Type':        'video/mp4',
+                    'Content-Disposition': make_content_disposition(filename),
+                    'Cache-Control':       'no-cache',
+                    'Content-Length':      str(file_size),
+                }
+            )
+
+    except Exception as e:
+        logger.error(f"[MP4DL] Error: {e}")
+        return jsonify({"status": "error", "msg": "Terjadi kesalahan saat download video. Silakan coba lagi."}), 500
+
 
 # =============================================================================
 # DAILY HEALTH + AI MESSAGE
