@@ -1537,7 +1537,8 @@ def fast_mp3_api():
                 'noplaylist':    True,
                 'user_agent':    TIKTOK_UA,
                 'http_headers':  DEFAULT_HEADERS,
-                'postprocessors': [{\n                    'key':            'FFmpegExtractAudio',
+                'postprocessors': [{
+                    'key':            'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '0',
                 }],
@@ -1642,7 +1643,8 @@ def _ig_get_info_instaloader(url):
         'title':        (post.caption or '').replace('\n', ' ')[:80] or f'Instagram {post.shortcode}',
         'cover':        post.url,
         'author':       post.owner_username,
-        'duration_sec': int(post.video_duration or 0),
+        'duration_sec': 
+int(post.video_duration or 0),
         'is_video':     post.is_video,
         'shortcode':    shortcode,
     }
