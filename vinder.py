@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-       # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+            # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1645,7 +1645,7 @@ def _ig_get_info_instaloader(url):
     post = instaloader.Post.from_shortcode(loader.context, shortcode)
     return {
         'title':    (post.caption or '').replace('\n', ' ')[:80] or f'Instagram {post.shortcode}',
-        'cover':    post.url,  #thumbnail/cover image URL
+        'cover':    post.url,  # thumbnail/cover image URL
         'author':   post.owner_username,
         'duration': str(post.video_duration or 0) + 's',
         'is_video': post.is_video,
@@ -1716,6 +1716,7 @@ def thumb_proxy_api():
 
 
 
+@app.route('/api/mp4_info', methods=['POST'])
 @limiter.limit('20 per minute')
 def mp4_info_api():
     """
