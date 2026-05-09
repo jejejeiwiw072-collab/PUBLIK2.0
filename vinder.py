@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-              # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+            # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1509,89 +1509,55 @@ def fast_mp3_api():
             final_title = tikwm_title or title
 
         else:
-            # Non-TikTok: tetap pakai yt-dlp
-            ydl_opts = {
+            # Non-TikTok (YouTube, Instagram, Facebook): pakai download_audio_ytdlp
+            # extract_info + session.get gagal untuk YouTube karena signed URL
+            import tempfile as _tempfile
+            _fd2, tmp_base2 = _tempfile.mkstemp(prefix='vinder_yt_')
+            os.close(_fd2)
+            os.remove(tmp_base2)
+            out_mp3_yt = tmp_base2 + '.mp3'
+
+            ydl_info_opts = {
                 'format':      'bestaudio/best',
                 'quiet':       True,
                 'no_warnings': True,
                 'noplaylist':  True,
-                'user_agent':  TIKTOK_UA,
-                'http_headers': DEFAULT_HEADERS,
             }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info        = ydl.extract_info(tiktok_url, download=False)
-                audio_url   = info.get('url')
-                video_url   = info.get('url')
-                final_title = info.get('title', title)
+            with yt_dlp.YoutubeDL(ydl_info_opts) as ydl:
+                info_yt     = ydl.extract_info(tiktok_url, download=False)
+                final_title = info_yt.get('title', title)
 
-        if not audio_url:
-            return "Gagal mengambil audio, silakan coba lagi.", 500
+            download_audio_ytdlp(tiktok_url, out_mp3_yt)
 
-        # Cover dihapus — tidak ada frame extraction
+            if not os.path.exists(out_mp3_yt):
+                return "Gagal memproses audio, silakan coba lagi.", 500
 
-        # ── Encode audio via ffmpeg pipe ──
-        audio_headers = TIKTOK_HEADERS.copy()
-        audio_headers['Range'] = 'bytes=0-'
+            filename  = f"[Vinder].{safe_filename(final_title)}.mp3"
+            file_size = os.path.getsize(out_mp3_yt)
 
-        r = session.get(audio_url, stream=True, timeout=30, headers=audio_headers, allow_redirects=True)
-        if r.status_code >= 400:
-            return "Video tidak dapat diakses, silakan coba lagi.", 502
-
-        # FIX #8: Ganti mktemp() yang deprecated dan tidak aman (race condition)
-        # mkstemp() langsung buat file + return file descriptor, aman dari race condition
-        _fd, tmp_mp3 = tempfile.mkstemp(suffix='.mp3')
-        os.close(_fd)  # tutup fd, ffmpeg akan buka file-nya sendiri
-
-        proc = subprocess.Popen(
-            ['ffmpeg', '-y', '-i', 'pipe:0', '-vn',
-             '-acodec', 'libmp3lame', '-ab', '128k', '-ar', '44100',
-             '-f', 'mp3', tmp_mp3],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
-
-        try:
-            for chunk in r.iter_content(chunk_size=512 * 1024):
-                if chunk:
-                    proc.stdin.write(chunk)
-            proc.stdin.close()
-        except BrokenPipeError:
-            pass
-
-        proc.wait(timeout=120)
-
-        if proc.returncode != 0:
-            err = proc.stderr.read().decode(errors='ignore')[-300:]
-            raise RuntimeError("Gagal memproses audio, silakan coba lagi.")
-
-        # ── Stream MP3 ke browser ──
-        filename  = f"[Vinder].{safe_filename(final_title)}.mp3"
-        file_size = os.path.getsize(tmp_mp3)
-
-        def generate_and_cleanup():
-            try:
-                with open(tmp_mp3, 'rb') as f:
-                    while True:
-                        chunk = f.read(512 * 1024)
-                        if not chunk:
-                            break
-                        yield chunk
-            finally:
+            def generate_yt_mp3():
                 try:
-                    os.remove(tmp_mp3)
-                except Exception:
-                    pass
+                    with open(out_mp3_yt, 'rb') as f:
+                        while True:
+                            chunk = f.read(512 * 1024)
+                            if not chunk:
+                                break
+                            yield chunk
+                finally:
+                    try:
+                        os.remove(out_mp3_yt)
+                    except Exception:
+                        pass
 
-        return Response(
-            stream_with_context(generate_and_cleanup()),
-            headers={
-                'Content-Type':        'audio/mpeg',
-                'Content-Disposition': make_content_disposition(filename),
-                'Cache-Control':       'no-cache',
-                'Content-Length':      str(file_size),
-            }
-        )
+            return Response(
+                stream_with_context(generate_yt_mp3()),
+                headers={
+                    'Content-Type':        'audio/mpeg',
+                    'Content-Disposition': make_content_disposition(filename),
+                    'Cache-Control':       'no-cache',
+                    'Content-Length':      str(file_size),
+                }
+            )
 
     except Exception as e:
         # FIX #6: Sembunyikan detail error dari user
@@ -1695,6 +1661,8 @@ def _ig_download_video_instaloader(url, out_mp4):
     shutil.move(mp4_files[0], out_mp4)
     shutil.rmtree(tmp_dir, ignore_errors=True)
     logger.info(f"[IG] Download selesai: {out_mp4}")
+
+
 
 
 @app.route('/api/thumb')
@@ -1854,7 +1822,7 @@ def download_mp4_api():
 
         else:
             # ── YOUTUBE / FACEBOOK: download via yt-dlp ──
-            fmt = 'bestvideo+bestaudio/best' if quality == 'best' else 'bestvideo[height<=480]+bestaudio/best[height<=480]'
+            fmt = 'bestvideo+bestaudio/best' if quality == 'best' else 'bestvideo[height<=480]+bestaudio/best[height<=480]/best[height<=480]/best'
             _fd, tmp_base = tempfile.mkstemp(prefix='vinder_mp4_')
             os.close(_fd)
             os.remove(tmp_base)
