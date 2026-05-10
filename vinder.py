@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                           # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1642,6 +1642,7 @@ def fast_mp3_api():
         logger.error(f"fast_mp3 error: {e}")
         return "Terjadi kesalahan saat memproses audio. Silakan coba lagi.", 500
 
+
 # =============================================================================
 # INSTAGRAM / YOUTUBE / FACEBOOK — MP4 INFO & DOWNLOAD
 # Mekanisme igG.py: instaloader untuk Instagram (post/reel/igtv)
@@ -1673,36 +1674,6 @@ def _ig_get_info_instaloader(url):
     Return dict info atau raise Exception.
     """
     import instaloader
-    shortcode = _ig_parse_shortcode(url)
-    if not shortcode:
-        raise ValueError("Shortcode Instagram tidak ditemukan di URL.")
-
-    loader = instaloader.Instaloader(
-        download_videos=False,
-        download_video_thumbnails=False,
-        download_geotags=False,
-        download_comments=False,
-        save_metadata=False,
-        compress_json=False,
-        quiet=True,
-    )
-    post = instaloader.Post.from_shortcode(loader.context, shortcode)
-    return {
-        'title':        (post.caption or '').replace('\n', ' ')[:80] or f'Instagram {post.shortcode}',
-        'cover':        post.url,
-        'author':       post.owner_username,
-        'duration_sec': int(post.video_duration or 0),
-        'is_video':     post.is_video,
-        'shortcode':    shortcode,
-    }
-
-
-def _ig_download_video_instaloader(url, out_mp4):
-    """
-    Download video Instagram ke out_mp4 via instaloader.
-    Tiru dl_post() di igG.py: download ke tmp dir, lalu move file mp4.
-    """
-    import instaloader, shutil, glob as _glob
     shortcode = _ig_parse_shortcode(url)
     if not shortcode:
         raise ValueError("Shortcode Instagram tidak ditemukan di URL.")
@@ -1903,7 +1874,8 @@ def download_mp4_api():
 
             if not os.path.exists(out_mp4):
                 return jsonify({"status": "error", "msg": "Gagal download video Instagram."}), 500
-      filename  = f"[Vinder].{safe_filename(title)}.mp4"
+
+            filename  = f"[Vinder].{safe_filename(title)}.mp4"
             file_size = os.path.getsize(out_mp4)
             logger.info(f"[IG] Siap stream: {filename} ({file_size // 1024} KB)")
 
@@ -2187,11 +2159,10 @@ def _self_ping_loop():
             logger.warning(f"[PING] Self-ping gagal: {e}")
         _time.sleep(4 * 60)
 
+
 if __name__ == "__main__":
     threading.Thread(target=_self_ping_loop, daemon=True).start()
     threading.Thread(target=_daily_health_loop, daemon=True).start()
     kirim_notif("Sistem Vinder Berhasil ON di Railway!")
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
-
-            
