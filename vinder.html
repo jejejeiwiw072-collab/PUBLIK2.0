@@ -234,6 +234,23 @@
     .btn-dl:hover { background: #152a15; box-shadow: 0 2px 12px rgba(74,222,128,0.15); }
     .btn-dl:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    .btn-copy-url {
+      background: #111;
+      color: var(--muted2);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      font-size: 12px;
+      border-radius: 7px;
+      margin-top: 6px;
+      display: inline-flex;
+      align-items: center;
+      width: auto;
+      gap: 5px;
+      transition: all 0.2s;
+    }
+    .btn-copy-url:hover { background: #1a1a1a; border-color: var(--border-bright); color: var(--text); }
+    .btn-copy-url.copied { background: #0e1f0e; border-color: #1a3a1a; color: #4ade80; }
+
     /* ===== FORMAT TOGGLE (MP4 / MP3) ===== */
     .format-toggle {
       display: flex;
@@ -735,7 +752,7 @@
     }
     .modal-upload-area:hover { border-color: var(--accent); background: rgba(37,99,235,0.04); }
     .modal-upload-area p { font-size: 13px; color: var(--muted2); margin-top: 6px; }
-    .modal-upload-area .upload-icon { font-size: 24px; }
+        .modal-upload-area .upload-icon { font-size: 24px; }
     .upload-preview {
       display: flex;
       align-items: center;
@@ -748,7 +765,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                            .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                                   .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-preview button {
       width: auto;
@@ -1776,7 +1793,7 @@
     }
   }
 
-  /* ===== BACKGROUND MP3 SYSTEM ===== */
+ /* ===== BACKGROUND MP3 SYSTEM ===== */
   // Pakai /api/mp3_progress (SSE) + /api/get_mp3_file sesuai backend
 
   async function startMp3Background(url, title) {
@@ -1959,6 +1976,19 @@
     }
   });
 
+  /* ===== COPY VIDEO URL ===== */
+  function copyVideoUrl(btn, encUrl) {
+    const url = decodeURIComponent(encUrl);
+    navigator.clipboard.writeText(url).then(() => {
+      btn.classList.add('copied');
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> URL Disalin`;
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy URL`;
+      }, 1500);
+    });
+  }
+
   /* ===== SEARCH ===== */
   async function doSearch() {
     const kw = document.getElementById('kw').value.trim();
@@ -1998,6 +2028,10 @@
               <span class="meta-tag">⏱ ${v.duration}</span>
               <span class="meta-tag">💾 ${v.size}</span>
             </div>
+            <button class="btn-copy-url" onclick="copyVideoUrl(this,'${encodeURIComponent(v.play)}')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy URL
+            </button>
             <button class="btn-dl" onclick="handleSearchDownload(this,'${encodeURIComponent(v.hdplay||v.play)}','${encodeURIComponent(v.title)}','${encodeURIComponent(v.play)}')">
               ⬇ Download ${selectedFormat.toUpperCase()}
             </button>
@@ -2167,7 +2201,7 @@
   function removePhoto() {
     document.getElementById('fb-photo').value = '';
     document.getElementById('photo-preview').style.display = 'none';
-    document.getElementById('upload-area').style.display = 'block';
+document.getElementById('upload-area').style.display = 'block';
   }
 
   function sendFeedback() {
