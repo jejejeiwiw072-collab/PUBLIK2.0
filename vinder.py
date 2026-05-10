@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                         # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -870,6 +870,7 @@ def _build_ytdlp_opts_base(out_mp3):
 
 # =============================================================================
 # PIPED INSTANCES — fallback otomatis kalau satu instance down
+# Updated 2026: tambah instance aktif, hapus yang sudah mati
 # =============================================================================
 _PIPED_INSTANCES = [
     "https://pipedapi.kavin.rocks",
@@ -877,6 +878,21 @@ _PIPED_INSTANCES = [
     "https://api.piped.yt",
     "https://piped.adminforge.de/api",
     "https://watchapi.whatever.social",
+    "https://pipedapi.reallyaweso.me",
+    "https://piped-api.privacy.com.de",
+    "https://pipedapi.in.projectsegfau.lt",
+    "https://pipedapi.syncpundit.io",
+]
+
+# =============================================================================
+# INVIDIOUS INSTANCES — alternatif Piped, lebih stabil
+# =============================================================================
+_INVIDIOUS_INSTANCES = [
+    "https://invidious.snopyta.org",
+    "https://yt.artemislena.eu",
+    "https://invidious.nerdvpn.de",
+    "https://invidious.projectsegfau.lt",
+    "https://inv.tux.pizza",
 ]
 
 
@@ -933,6 +949,55 @@ def _piped_search_and_get_url(query):
     return None
 
 
+def _invidious_search_and_get_url(query):
+    """
+    Cari lagu via Invidious API, return direct audio stream URL.
+    Invidious lebih stabil dari Piped untuk search & stream audio.
+    Return: audio_url string atau None kalau semua instance gagal.
+    """
+    from urllib.parse import quote as _quote
+    for instance in _INVIDIOUS_INSTANCES:
+        try:
+            # Step 1: Search video
+            search_url = f"{instance}/api/v1/search?q={_quote(query)}&type=video&sort_by=relevance"
+            r = requests.get(search_url, timeout=8)
+            r.raise_for_status()
+            items = r.json()
+            if not items:
+                logger.warning(f"[INVIDIOUS] {instance} — hasil search kosong")
+                continue
+
+            video_id = items[0].get('videoId', '')
+            if not video_id:
+                continue
+
+            # Step 2: Get video streams
+            streams_url = f"{instance}/api/v1/videos/{video_id}"
+            r2 = requests.get(streams_url, timeout=8)
+            r2.raise_for_status()
+            data = r2.json()
+
+            audio_formats = data.get('adaptiveFormats', [])
+            audio_only = [f for f in audio_formats if f.get('type', '').startswith('audio')]
+
+            if not audio_only:
+                logger.warning(f"[INVIDIOUS] {instance} — audio format kosong untuk {video_id}")
+                continue
+
+            # Pilih bitrate tertinggi
+            best = sorted(audio_only, key=lambda x: x.get('bitrate', 0), reverse=True)[0]
+            audio_url = best.get('url')
+            if audio_url:
+                logger.info(f"[INVIDIOUS] Berhasil via {instance} — bitrate={best.get('bitrate')}bps")
+                return audio_url
+
+        except Exception as e:
+            logger.warning(f"[INVIDIOUS] {instance} gagal: {e}")
+            continue
+
+    return None
+
+
 def _download_piped_audio(audio_url, out_mp3):
     """
     Download audio URL dari Piped dan convert ke MP3 via ffmpeg.
@@ -965,15 +1030,23 @@ def spotify_download_mp3(query, out_mp3):
     Download audio dengan multi-strategy fallback.
 
     Strategi (dijalankan urutan):
-    1. Piped API — multi-instance, no bot detection, no auth
-    2. iOS player client yt-dlp — bypass bot datacenter
-    3. android_vr player client yt-dlp
-    4. tv_embedded player client yt-dlp
-    5. SoundCloud — last-resort, no auth
+    1. Piped API        — multi-instance, no bot detection, no auth
+    2. Invidious API    — alternatif Piped, lebih stabil
+    3. iOS player client yt-dlp — bypass bot datacenter
+    4. mweb player client yt-dlp — mirip mobile browser
+    5. android_vr player client yt-dlp
+    6. web_creator player client yt-dlp
+    7. tv_embedded player client yt-dlp
+    8. SoundCloud       — last-resort, no auth
     """
     import glob
 
     base_opts = _build_ytdlp_opts_base(out_mp3)
+
+    def _cleanup_partial():
+        for f in glob.glob(out_mp3 + '.*'):
+            try: os.remove(f)
+            except Exception: pass
 
     # =========================================================
     # Strategi 1: Piped API — multi-instance fallback
@@ -984,49 +1057,40 @@ def spotify_download_mp3(query, out_mp3):
         audio_url = _piped_search_and_get_url(query)
         if audio_url and _download_piped_audio(audio_url, out_mp3):
             if os.path.exists(out_mp3) and os.path.getsize(out_mp3) > 0:
-                logger.info(f"[SPOTIFY] Strategi 1 Piped berhasil!")
+                logger.info("[SPOTIFY] Strategi 1 Piped berhasil!")
                 return
     except Exception as e:
         logger.warning(f"[SPOTIFY] Strategi 1 Piped gagal: {e}")
 
-    for f in glob.glob(out_mp3 + '.*'):
-        try: os.remove(f)
-        except Exception: pass
+    _cleanup_partial()
+    time.sleep(1)
 
     # =========================================================
-    # Strategi 2: iOS player client — bypass bot-detection datacenter
+    # Strategi 2: Invidious API — alternatif Piped, lebih stabil
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 2 — iOS player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 2 — Invidious API: {query}")
     try:
-        opts2 = {
-            **base_opts,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['ios'],
-                }
-            },
-        }
-        with yt_dlp.YoutubeDL(opts2) as ydl:
-            ydl.download([f"ytsearch1:{query}"])
-        if _spotify_finalize_output(out_mp3):
-            return
+        audio_url = _invidious_search_and_get_url(query)
+        if audio_url and _download_piped_audio(audio_url, out_mp3):
+            if os.path.exists(out_mp3) and os.path.getsize(out_mp3) > 0:
+                logger.info("[SPOTIFY] Strategi 2 Invidious berhasil!")
+                return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 2 gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 2 Invidious gagal: {e}")
 
-    for f in glob.glob(out_mp3 + '.*'):
-        try: os.remove(f)
-        except Exception: pass
+    _cleanup_partial()
+    time.sleep(1)
 
     # =========================================================
-    # Strategi 3: android_vr player client
+    # Strategi 3: iOS player client — bypass bot-detection datacenter
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 3 — android_vr player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 3 — iOS player client: {query}")
     try:
         opts3 = {
             **base_opts,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android_vr'],
+                    'player_client': ['ios'],
                 }
             },
         }
@@ -1035,22 +1099,21 @@ def spotify_download_mp3(query, out_mp3):
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 3 gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 3 (iOS) gagal: {e}")
 
-    for f in glob.glob(out_mp3 + '.*'):
-        try: os.remove(f)
-        except Exception: pass
+    _cleanup_partial()
+    time.sleep(1)
 
     # =========================================================
-    # Strategi 4: tv_embedded player client
+    # Strategi 4: mweb player client — mirip mobile browser biasa
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 4 — tv_embedded player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 4 — mweb player client: {query}")
     try:
         opts4 = {
             **base_opts,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['tv_embedded'],
+                    'player_client': ['mweb'],
                 }
             },
         }
@@ -1059,24 +1122,94 @@ def spotify_download_mp3(query, out_mp3):
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 4 gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 4 (mweb) gagal: {e}")
 
-    for f in glob.glob(out_mp3 + '.*'):
-        try: os.remove(f)
-        except Exception: pass
+    _cleanup_partial()
+    time.sleep(1)
 
     # =========================================================
-    # Strategi 5: SoundCloud — last-resort, no auth needed
+    # Strategi 5: android_vr player client
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 5 — SoundCloud last-resort: {query}")
+    logger.info(f"[SPOTIFY] Strategi 5 — android_vr player client: {query}")
     try:
-        opts5 = {**base_opts}
+        opts5 = {
+            **base_opts,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android_vr'],
+                }
+            },
+        }
         with yt_dlp.YoutubeDL(opts5) as ydl:
-            ydl.download([f"scsearch1:{query}"])
+            ydl.download([f"ytsearch1:{query}"])
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 5 (SoundCloud) gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 5 (android_vr) gagal: {e}")
+
+    _cleanup_partial()
+    time.sleep(1)
+
+    # =========================================================
+    # Strategi 6: web_creator player client
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 6 — web_creator player client: {query}")
+    try:
+        opts6 = {
+            **base_opts,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['web_creator'],
+                }
+            },
+        }
+        with yt_dlp.YoutubeDL(opts6) as ydl:
+            ydl.download([f"ytsearch1:{query}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 6 (web_creator) gagal: {e}")
+
+    _cleanup_partial()
+    time.sleep(1)
+
+    # =========================================================
+    # Strategi 7: tv_embedded player client
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 7 — tv_embedded player client: {query}")
+    try:
+        opts7 = {
+            **base_opts,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['tv_embedded'],
+                }
+            },
+        }
+        with yt_dlp.YoutubeDL(opts7) as ydl:
+            ydl.download([f"ytsearch1:{query}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 7 (tv_embedded) gagal: {e}")
+
+    _cleanup_partial()
+    time.sleep(1)
+
+    # =========================================================
+    # Strategi 8: SoundCloud — last-resort, bersihkan query dulu
+    # Hapus kata-kata yang bikin hasil SC meleset (tahun, feat, dll)
+    # =========================================================
+    sc_query = re.sub(r'\b(feat\.?|ft\.?|official|video|lyrics?|audio|20\d{2})\b', '', query, flags=re.IGNORECASE).strip()
+    logger.info(f"[SPOTIFY] Strategi 8 — SoundCloud last-resort: {sc_query}")
+    try:
+        opts8 = {**base_opts}
+        with yt_dlp.YoutubeDL(opts8) as ydl:
+            ydl.download([f"scsearch1:{sc_query}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 8 (SoundCloud) gagal: {e}")
 
     raise RuntimeError("Gagal mendownload audio. Semua strategi gagal. Coba lagi nanti.")
 
