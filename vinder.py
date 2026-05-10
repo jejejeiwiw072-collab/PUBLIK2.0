@@ -752,6 +752,17 @@ else:
         "Set env var YOUTUBE_PO_TOKEN + YOUTUBE_VISITOR_DATA untuk fix."
     )
 
+# =============================================================================
+# PROXY SETUP
+# Set env var di Railway: YTDLP_PROXY=http://user:pass@ip:port
+# Pakai proxy residensial (misal Webshare) supaya tidak kena bot detection YouTube
+# =============================================================================
+_YTDLP_PROXY = os.environ.get('YTDLP_PROXY', '').strip()
+if _YTDLP_PROXY:
+    logger.info("[PROXY] YTDLP_PROXY ditemukan, semua request yt-dlp akan pakai proxy.")
+else:
+    logger.warning("[PROXY] YTDLP_PROXY tidak ditemukan. Download mungkin gagal kena bot detection YouTube.")
+
 
 def _setup_youtube_cookies():
     """Tulis env var YOUTUBE_COOKIES ke file temp, return path-nya."""
@@ -910,6 +921,11 @@ def _build_ytdlp_opts_base(out_mp3):
     if _COOKIES_FILE and os.path.exists(_COOKIES_FILE):
         opts['cookiefile'] = _COOKIES_FILE
         logger.info("[COOKIES] yt-dlp pakai cookies YouTube.")
+
+    # Inject proxy kalau tersedia
+    if _YTDLP_PROXY:
+        opts['proxy'] = _YTDLP_PROXY
+        logger.info("[PROXY] yt-dlp pakai proxy.")
 
     return opts
 
