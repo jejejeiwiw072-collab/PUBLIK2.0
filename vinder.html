@@ -565,15 +565,15 @@
     }
     .dl-progress-bar.done { width: 100%; background: #4ade80; transition: width 0.15s ease; }
     .dl-progress-bar.fail { width: 100%; background: var(--error); }
-    .dl-progress-bar.turbo-loading {
-      width: 100%;
-      background: linear-gradient(90deg, #9333ea, #2563eb, #9333ea);
+    .dl-progress-bar.indeterminate {
+      width: 40%;
+      background: linear-gradient(90deg, transparent, var(--accent), #9333ea, transparent);
       background-size: 200% 100%;
-      animation: turbo-sweep 1.2s ease-in-out infinite;
+      animation: shimmer-slide 1.6s ease-in-out infinite;
     }
-    @keyframes turbo-sweep {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
+    @keyframes shimmer-slide {
+      0%   { transform: translateX(-150%); }
+      100% { transform: translateX(350%); }
     }
     .dl-close {
       background: none;
@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                            .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-preview button {
       width: auto;
@@ -1306,7 +1306,7 @@
         <div class="footer-name">zakdev_</div>
         <div class="footer-ver">Vinder v1.9 · HYPE Engine</div>
       </div>
-      <div class="footer-links">
+           <div class="footer-links">
         <a class="footer-link" onclick="openFeedbackModal()">Feedback</a>
         <a class="footer-link donate-link" onclick="openDonateModal()">zakdev</a>
         <a class="footer-link" href="#" onclick="showChangelog(); return false;">Changelog</a>
@@ -1712,7 +1712,7 @@
     } catch (e) {
       // FIX: tampilkan error ke bubble (sebelumnya hanya console.error, bubble hilang tanpa feedback)
       console.error('[MP3] Download error:', e);
-      bubble.setError(e.message || 'Gagal memproses audio, silakan coba lagi.');
+      bubble.setError(e.message || 'Gagal memproses audio, coba lagi ya.');
     }
   }
 
@@ -1742,19 +1742,19 @@
       setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
       bubble.setSuccess();
     } catch (e) {
-      bubble.setError('Gagal download Spotify: ' + e.message);
+      bubble.setError('Gagal download, coba lagi ya.');
       console.error('[SPOTIFY] Download error:', e);
     }
   }
 
-  /* ===== DOWNLOAD BUBBLE (overwrite createBubble buat support MP3 bg) ===== */
+  /* ===== DOWNLOAD BUBBLE ===== */
   function createBubble(title, isBg) {
     const wrap = document.getElementById('dl-container');
     const el = document.createElement('div');
     el.className = 'dl-bubble';
     const barId = 'bar-' + Date.now();
-    const subText = isBg ? '⚡ Memulai proses...' : 'Mengunduh: 0%';
-    const barClass = isBg ? 'dl-progress-bar turbo-loading' : 'dl-progress-bar';
+    const subText = isBg ? 'Sedang diproses, harap tunggu...' : 'Menyiapkan unduhan...';
+    const barClass = isBg ? 'dl-progress-bar indeterminate' : 'dl-progress-bar';
     el.innerHTML = `
       <div class="dl-bubble-icon loading">${isBg ? '🎵' : '⬇️'}</div>
       <div class="dl-bubble-text">
@@ -1769,59 +1769,41 @@
     const bar = el.querySelector('#' + barId);
     const sub = el.querySelector('.dl-bubble-sub');
 
-    // Sequence teks progress untuk MP3 — manipulasi persepsi waktu
-    let stepTimer = null;
+    // Untuk isBg: hanya satu pesan soft setelah jeda singkat, lalu biarkan shimmer berjalan jujur
     if (isBg) {
-      const steps = [
-        [0,    0,   '⚡ Menghubungi server...'],
-        [150,  8,   '🔍 Menganalisis link TikTok...'],
-        [400,  18,  '🎯 Mengambil stream audio...'],
-        [700,  30,  '🔗 Terhubung ke CDN platform...'],
-        [1000, 42,  '🎵 Mengekstrak audio asli...'],
-        [1400, 55,  '⚙️ Encoding MP3 128kbps...'],
-        [1900, 65,  '🖼️ Mengambil cover dari video...'],
-        [2400, 75,  '✂️ Crop & resize cover 500x500...'],
-        [2800, 83,  '🏷️ Menyematkan cover art...'],
-        [3200, 90,  '📦 Menyiapkan file MP3...'],
-        [3600, 95,  '🚀 Hampir selesai...'],
-      ];
-      steps.forEach(([delay, pct, msg]) => {
-        const t = setTimeout(() => {
-          if (!el.isConnected) return;
-          sub.textContent = msg;
-          bar.style.width = pct + '%';
-          bar.style.transition = 'width 0.4s ease';
-        }, delay);
-        // simpan semua timer biar bisa di-cancel kalau selesai duluan
-        el._stepTimers = el._stepTimers || [];
-        el._stepTimers.push(t);
-      });
+      const t = setTimeout(() => {
+        if (!el.isConnected) return;
+        sub.textContent = 'Lagi diproses di server, sebentar ya...';
+      }, 2500);
+      el._stepTimers = [t];
     }
 
     return {
       updateProgress(p, msg) {
         if (!isBg) {
+          bar.classList.remove('indeterminate');
           bar.style.width = p + '%';
-          sub.textContent = msg || ('Mengunduh: ' + Math.round(p) + '%');
+          sub.textContent = msg || ('Mengunduh... ' + Math.round(p) + '%');
         }
       },
       setSuccess() {
-        // Cancel semua step timer yang pending
         (el._stepTimers || []).forEach(t => clearTimeout(t));
         el.querySelector('.dl-bubble-icon').textContent = '✅';
         el.querySelector('.dl-bubble-icon').className = 'dl-bubble-icon success';
+        bar.classList.remove('indeterminate');
         bar.style.transition = 'width 0.3s ease';
         bar.style.width = '100%';
         bar.className = 'dl-progress-bar done';
-        sub.textContent = '✅ Selesai — File sedang diunduh!';
+        sub.textContent = 'File siap — unduhan dimulai!';
         setTimeout(() => fadeOutBubble(el), 4000);
       },
       setError(msg) {
         (el._stepTimers || []).forEach(t => clearTimeout(t));
         el.querySelector('.dl-bubble-icon').textContent = '❌';
         el.querySelector('.dl-bubble-icon').className = 'dl-bubble-icon error';
-        sub.textContent = msg || 'Gagal';
+        bar.classList.remove('indeterminate');
         bar.className = 'dl-progress-bar fail';
+        sub.textContent = msg || 'Oops, ada yang salah. Coba lagi ya.';
       }
     };
   }
@@ -1834,7 +1816,7 @@
   }
 
   function handleRealDownload(dUrl, title) {
-    const bubble = createBubble(title, false);
+    const bubble = createBubble(title, true);
     try {
       const a = document.createElement('a');
       a.href = dUrl;
@@ -1844,7 +1826,7 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setTimeout(() => { bubble.updateProgress(100); bubble.setSuccess(); }, 1500);
+      bubble.setSuccess();
     } catch (e) {
       bubble.setError(e.message);
     }
