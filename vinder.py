@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                           # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                          # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -855,22 +855,20 @@ def spotify_download_mp3(query, out_mp3):
     base_opts = _build_ytdlp_opts_base(out_mp3)
 
     # =========================================================
-    # Strategi 1: YouTube Music via web client
+    # Strategi 1: iOS player client — paling tahan bot-detection di datacenter
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 1 — YouTube Music web client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 1 — iOS player client: {query}")
     try:
         opts1 = {
             **base_opts,
-            'default_search': 'ytsearch',
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['web'],
-                    'player_skip': ['webpage'],
+                    'player_client': ['ios'],
                 }
             },
         }
         with yt_dlp.YoutubeDL(opts1) as ydl:
-            ydl.download([f"https://music.youtube.com/search?q={requests.utils.quote(query)}"])
+            ydl.download([f"ytsearch1:{query}"])
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
@@ -882,16 +880,15 @@ def spotify_download_mp3(query, out_mp3):
         except Exception: pass
 
     # =========================================================
-    # Strategi 2: YouTube biasa — tv_embedded client (bypass 403)
-    # tv_embedded tidak kena bot check yang sama dengan android/web biasa
+    # Strategi 2: android_vr player client — tidak kena bot-check datacenter
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 2 — YouTube tv_embedded client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 2 — android_vr player client: {query}")
     try:
         opts2 = {
             **base_opts,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['tv_embedded', 'web'],
+                    'player_client': ['android_vr'],
                 }
             },
         }
@@ -907,15 +904,15 @@ def spotify_download_mp3(query, out_mp3):
         except Exception: pass
 
     # =========================================================
-    # Strategi 3: YouTube biasa — mweb client
+    # Strategi 3: tv_embedded client — fallback YouTube bot bypass
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 3 — YouTube mweb client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 3 — tv_embedded player client: {query}")
     try:
         opts3 = {
             **base_opts,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['mweb'],
+                    'player_client': ['tv_embedded'],
                 }
             },
         }
@@ -1642,12 +1639,12 @@ def fast_mp3_api():
         logger.error(f"fast_mp3 error: {e}")
         return "Terjadi kesalahan saat memproses audio. Silakan coba lagi.", 500
 
-
 # =============================================================================
 # INSTAGRAM / YOUTUBE / FACEBOOK — MP4 INFO & DOWNLOAD
 # Mekanisme igG.py: instaloader untuk Instagram (post/reel/igtv)
 # yt-dlp untuk YouTube & Facebook
 # =============================================================================
+
 
 def _ig_parse_shortcode(url):
     """
@@ -2158,7 +2155,6 @@ def _self_ping_loop():
         except Exception as e:
             logger.warning(f"[PING] Self-ping gagal: {e}")
         _time.sleep(4 * 60)
-
 
 if __name__ == "__main__":
     threading.Thread(target=_self_ping_loop, daemon=True).start()
