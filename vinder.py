@@ -1452,7 +1452,7 @@ def search_videos_api():
         logger.info(f"[OK] Found {len(results)} videos (after filter)")
         return jsonify({"status": "success", "data": results})
 
-except Exception as e:
+    except Exception as e:
         logger.error(f"Search Error: {str(e)}")
         return jsonify({"status": "error", "msg": str(e)})
 
@@ -1777,7 +1777,7 @@ def get_mp3_api():
     if not tiktok_url:
         return "URL Kosong", 400
 
-    # FIX #3: Cek SSRF sebelum fetch
+       # FIX #3: Cek SSRF sebelum fetch
     if not is_safe_external_url(tiktok_url) or not is_supported_url(tiktok_url):
         return "URL tidak valid atau platform tidak didukung.", 400
 
