@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                         # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -815,7 +815,7 @@ def _spotify_finalize_output(out_mp3):
 def _build_ytdlp_opts_base(out_mp3):
     """Base yt-dlp opts yang dipakai semua strategi Spotify."""
     return {
-        'format': 'bestaudio/best',
+        'format': 'bestaudio/best/worstaudio',
         'outtmpl': out_mp3 + '.%(ext)s',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -829,6 +829,9 @@ def _build_ytdlp_opts_base(out_mp3):
         'retries': 5,
         'fragment_retries': 5,
         'skip_unavailable_fragments': True,
+        # Bypass format restriction dan geo-block
+        'geo_bypass': True,
+        'age_limit': 99,
     }
 
 
@@ -1900,8 +1903,7 @@ def download_mp4_api():
 
             if not os.path.exists(out_mp4):
                 return jsonify({"status": "error", "msg": "Gagal download video Instagram."}), 500
-
-            filename  = f"[Vinder].{safe_filename(title)}.mp4"
+      filename  = f"[Vinder].{safe_filename(title)}.mp4"
             file_size = os.path.getsize(out_mp4)
             logger.info(f"[IG] Siap stream: {filename} ({file_size // 1024} KB)")
 
@@ -2191,3 +2193,5 @@ if __name__ == "__main__":
     kirim_notif("Sistem Vinder Berhasil ON di Railway!")
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
+
+            
