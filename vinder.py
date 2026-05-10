@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-              # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                         # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -753,6 +753,43 @@ def spotify_get_cover(url):
     return None
 
 
+def spotify_get_artist_duration(url):
+    """
+    Scrape artist dan durasi dari og:description halaman Spotify.
+    Format og:description biasanya: "Listen to Tarot on Spotify. .Feast · Song · 2024 · 4:48"
+    Return: (artist, duration) atau (None, None) kalau gagal parse.
+    """
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=15)
+        match = re.search(r'<meta property="og:description" content="([^"]+)"', res.text)
+        if not match:
+            return None, None
+        desc = match.group(1)
+        logger.info(f"[SPOTIFY] og:description: {desc}")
+        # Format: "Listen to X on Spotify. ARTIST · Song · YEAR · DURATION"
+        parts = [p.strip() for p in desc.split(' · ')]
+        artist   = None
+        duration = None
+        for i, part in enumerate(parts):
+            # Durasi format: digit:digit (e.g. "4:48")
+            if re.match(r'^\d+:\d{2}$', part):
+                duration = part
+            # Artist biasanya part sebelum "Song" / "Album" / "Playlist"
+            if part in ('Song', 'Album', 'Playlist', 'Episode') and i > 0:
+                artist = parts[i - 1]
+        # Fallback: ambil teks setelah ". " (titik kalimat pertama)
+        if not artist:
+            after_dot = re.search(r'\. (.+?) ·', desc)
+            if after_dot:
+                artist = after_dot.group(1).strip()
+        logger.info(f"[SPOTIFY] Parsed artist={artist} duration={duration}")
+        return artist, duration
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Gagal scrape artist/duration: {e}")
+    return None, None
+
+
 def _spotify_finalize_output(out_mp3):
     """
     Cek dan rename output yt-dlp ke out_mp3.
@@ -928,13 +965,15 @@ def spotify_info_api():
     if not title:
         return jsonify({"status": "error", "msg": "Gagal membaca metadata lagu dari Spotify."}), 500
 
-    cover = spotify_get_cover(spotify_url)
+    cover            = spotify_get_cover(spotify_url)
+    artist, duration = spotify_get_artist_duration(spotify_url)
 
     return jsonify({
         "status":   "success",
         "title":    title,
         "cover":    cover or "",
-        "author":   "Spotify",
+        "author":   artist or "",
+        "duration": duration or "",
         "platform": "spotify",
     })
 
@@ -966,6 +1005,9 @@ def spotify_mp3_api():
             return "Gagal membaca metadata lagu dari Spotify. Coba lagi.", 500
 
         final_title = query
+        artist, _   = spotify_get_artist_duration(spotify_url)
+        if artist:
+            query = f"{query} {artist}"
         logger.info(f"[SPOTIFY] Query YouTube: {query}")
 
         _fd, tmp_base = tempfile.mkstemp(prefix='vinder_spotify_')
