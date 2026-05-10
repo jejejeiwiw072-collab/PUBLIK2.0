@@ -235,13 +235,12 @@
     .btn-dl:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .btn-copy-url {
-      background: #111;
+      background: #1a1a1a;
       color: var(--muted2);
-      border: 1px solid var(--border);
-      padding: 5px 10px;
-      font-size: 12px;
-      border-radius: 7px;
-      margin-top: 6px;
+      border: 1px solid #2a2a2a;
+      padding: 2px 6px;
+      font-size: 11px;
+      border-radius: 4px;
       display: inline-flex;
       align-items: center;
       width: auto;
@@ -752,7 +751,7 @@
     }
     .modal-upload-area:hover { border-color: var(--accent); background: rgba(37,99,235,0.04); }
     .modal-upload-area p { font-size: 13px; color: var(--muted2); margin-top: 6px; }
-        .modal-upload-area .upload-icon { font-size: 24px; }
+     .modal-upload-area .upload-icon { font-size: 24px; }
     .upload-preview {
       display: flex;
       align-items: center;
@@ -1263,7 +1262,7 @@
               <div style="height:1px; background:var(--border);"></div>
               <div onclick="pickPlatform('Instagram',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#777; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">Instagram</div>
               <div style="height:1px; background:var(--border);"></div>
-              <div onclick="pickPlatform('Spotify',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#777; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">Spotify</div>
+            <div onclick="pickPlatform('Spotify',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#777; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">Spotify</div>
             </div>
           </div>
         </div>
@@ -1793,7 +1792,7 @@
     }
   }
 
- /* ===== BACKGROUND MP3 SYSTEM ===== */
+  /* ===== BACKGROUND MP3 SYSTEM ===== */
   // Pakai /api/mp3_progress (SSE) + /api/get_mp3_file sesuai backend
 
   async function startMp3Background(url, title) {
@@ -2028,9 +2027,9 @@
               <span class="meta-tag">⏱ ${v.duration}</span>
               <span class="meta-tag">💾 ${v.size}</span>
             </div>
-            <button class="btn-copy-url" onclick="copyVideoUrl(this,'${encodeURIComponent(v.play)}')">
+            <button class="btn-copy-url" onclick="window.open(decodeURIComponent('${encodeURIComponent(v.play)}'),'_blank')">
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              Copy URL
+              Preview
             </button>
             <button class="btn-dl" onclick="handleSearchDownload(this,'${encodeURIComponent(v.hdplay||v.play)}','${encodeURIComponent(v.title)}','${encodeURIComponent(v.play)}')">
               ⬇ Download ${selectedFormat.toUpperCase()}
@@ -2201,7 +2200,7 @@
   function removePhoto() {
     document.getElementById('fb-photo').value = '';
     document.getElementById('photo-preview').style.display = 'none';
-document.getElementById('upload-area').style.display = 'block';
+    document.getElementById('upload-area').style.display = 'block';
   }
 
   function sendFeedback() {
@@ -2225,7 +2224,7 @@ document.getElementById('upload-area').style.display = 'block';
     document.getElementById('donate-modal').classList.remove('open');
   }
 
-  /* ===== CHANGELOG ===== */
+    /* ===== CHANGELOG ===== */
   function showChangelog() {
     const log = [
       { v: 'v1.9', note: 'Features section, platform badges & footer' },
