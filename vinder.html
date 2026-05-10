@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                                        .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                                   .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-preview button {
       width: auto;
@@ -1726,8 +1726,13 @@
 
         // Label khusus Spotify: ganti ⏱ & 💾 jadi badge hijau platform
         const metaExtra = platform === 'spotify'
-          ? `<span class="meta-tag" style="color:#1db954; border-color:#1db954;">🎵 Spotify</span>`
+          ? `${data.duration ? `<span class="meta-tag">⏱ ${data.duration}</span>` : ''}<span class="meta-tag" style="color:#1db954; border-color:#1db954;">🎵 Spotify</span>`
           : `<span class="meta-tag">⏱ ${durLabel}</span><span class="meta-tag">💾 ${sizeLabel}</span>`;
+
+        // Spotify: badge 👤 hanya tampil kalau author beneran ada (bukan kosong)
+        const authorBadge = (platform === 'spotify')
+          ? (authorLabel && authorLabel !== 'Spotify' ? `<span class="meta-tag">👤 ${authorLabel}</span>` : '')
+          : `<span class="meta-tag">👤 ${authorLabel}</span>`;
 
         container.innerHTML = `
           <div class="preview-card">
@@ -1736,7 +1741,7 @@
             <div class="preview-info">
               <div class="preview-title">${data.title || (platform === 'spotify' ? 'Lagu Spotify' : 'Video')}</div>
               <div class="preview-meta">
-                <span class="meta-tag">👤 ${authorLabel}</span>
+                ${authorBadge}
                 ${metaExtra}
               </div>
             </div>
