@@ -748,7 +748,7 @@
       font-size: 12px;
       color: var(--muted2);
     }
-                .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+                                        .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-preview button {
       width: auto;
@@ -1115,6 +1115,99 @@
       0%   { transform: translateX(0); }
       100% { transform: translateX(-50%); }
     }
+
+    /* ===== RESPONSIVE BREAKPOINTS ===== */
+
+    /* --- Mobile kecil: < 360px --- */
+    @media (max-width: 359px) {
+      .main-content { padding: 14px 10px; }
+      .card { padding: 14px; border-radius: 12px; }
+      .navbar { padding: 0 10px; }
+      .navbar-brand { font-size: 15px; left: 92px; }
+      .version-badge { font-size: 8px; padding: 2px 5px; }
+      .features-section { padding: 20px 10px 0; }
+      .features-grid { gap: 8px; }
+      .feat-card { padding: 12px 10px; }
+      .feat-title { font-size: 10px; }
+      .feat-desc { font-size: 11px; }
+      .site-footer { padding: 14px 10px 80px; }
+      .footer-links { gap: 4px; }
+      .footer-link { font-size: 11px; padding: 4px 8px; }
+      #dl-container { left: 8px; right: 8px; }
+    }
+
+    /* --- Tablet portrait & small laptop (600px – 1023px) --- */
+    @media (min-width: 600px) {
+      .main-content { max-width: 720px; padding: 28px 24px; }
+      .features-section { max-width: 720px; padding: 36px 24px 0; }
+      .site-footer { max-width: 720px; padding: 20px 24px 100px; }
+      .features-grid { gap: 14px; }
+      .feat-card { padding: 20px 18px; }
+      .features-heading { font-size: 26px; }
+      .features-sub { font-size: 14px; }
+      .card { padding: 22px; border-radius: 18px; }
+      .navbar { padding: 0 24px; }
+    }
+
+    /* --- Laptop & desktop (1024px – 1439px) --- */
+    @media (min-width: 1024px) {
+      body { padding-bottom: 80px; }
+      .main-content {
+        max-width: 860px;
+        padding: 36px 32px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+      .main-content > .card:first-child { grid-column: 1 / -1; }
+      .features-section { max-width: 860px; padding: 44px 32px 0; }
+      .features-grid { grid-template-columns: repeat(4, 1fr); gap: 14px; }
+      .site-footer { max-width: 860px; padding: 22px 32px 80px; }
+      .navbar { padding: 0 32px; height: 58px; }
+      .navbar-brand { font-size: 20px; left: 120px; }
+      .features-heading { font-size: 30px; }
+      .card { border-radius: 18px; padding: 24px; }
+      #dl-container { left: 50%; transform: translateX(-50%); width: 480px; right: auto; }
+      .fab-group { right: 32px; bottom: 32px; }
+    }
+
+    /* --- Large desktop & TV (1440px – 1919px) --- */
+    @media (min-width: 1440px) {
+      .main-content { max-width: 1100px; padding: 48px 40px; gap: 22px; }
+      .features-section { max-width: 1100px; padding: 56px 40px 0; }
+      .site-footer { max-width: 1100px; padding: 28px 40px 80px; }
+      .navbar { padding: 0 48px; height: 64px; }
+      .navbar-brand { font-size: 22px; left: 136px; }
+      .version-badge { font-size: 10px; }
+      .features-heading { font-size: 36px; }
+      .features-sub { font-size: 15px; margin-bottom: 28px; }
+      .features-grid { gap: 18px; }
+      .feat-card { padding: 24px 20px; }
+      .feat-icon { font-size: 30px; }
+      .feat-title { font-size: 12px; }
+      .feat-desc { font-size: 13px; }
+      .card { padding: 28px; }
+      input { font-size: 15px; padding: 14px 16px; }
+      button { font-size: 15px; padding: 15px; }
+      #dl-container { width: 520px; }
+    }
+
+    /* --- Ultra-wide / 4K TV (1920px+) --- */
+    @media (min-width: 1920px) {
+      .main-content { max-width: 1320px; padding: 60px 48px; gap: 26px; }
+      .features-section { max-width: 1320px; padding: 64px 48px 0; }
+      .site-footer { max-width: 1320px; padding: 32px 48px 80px; }
+      .navbar { padding: 0 64px; height: 72px; }
+      .navbar-brand { font-size: 24px; left: 148px; }
+      .features-heading { font-size: 42px; }
+      .features-grid { gap: 22px; }
+      .feat-card { padding: 28px 24px; }
+      .feat-icon { font-size: 34px; }
+      .card { border-radius: 22px; padding: 32px; }
+      input { font-size: 16px; padding: 15px 18px; }
+      button { font-size: 16px; padding: 16px; }
+    }
   </style>
 </head>
 <body>
@@ -1306,7 +1399,7 @@
         <div class="footer-name">zakdev_</div>
         <div class="footer-ver">Vinder v1.9 · HYPE Engine</div>
       </div>
-           <div class="footer-links">
+      <div class="footer-links">
         <a class="footer-link" onclick="openFeedbackModal()">Feedback</a>
         <a class="footer-link donate-link" onclick="openDonateModal()">zakdev</a>
         <a class="footer-link" href="#" onclick="showChangelog(); return false;">Changelog</a>
