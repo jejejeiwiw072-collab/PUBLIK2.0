@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                          # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                         # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -714,6 +714,35 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
 #   download_audio() -> spotify_download_mp3()
 # =============================================================================
 
+# =============================================================================
+# YOUTUBE COOKIES SETUP
+# Set env var YOUTUBE_COOKIES di Railway dengan isi file cookies.txt (Netscape format)
+# Otomatis ditulis ke file temp saat server start, dipakai semua strategi yt-dlp
+# =============================================================================
+
+_COOKIES_FILE = None
+
+def _setup_youtube_cookies():
+    """Tulis env var YOUTUBE_COOKIES ke file temp, return path-nya."""
+    global _COOKIES_FILE
+    cookies_content = os.environ.get('YOUTUBE_COOKIES', '').strip()
+    if not cookies_content:
+        logger.info("[COOKIES] YOUTUBE_COOKIES tidak ditemukan di env, yt-dlp tanpa cookies.")
+        return None
+    try:
+        import tempfile
+        fd, path = tempfile.mkstemp(prefix='vinder_yt_cookies_', suffix='.txt')
+        with os.fdopen(fd, 'w') as f:
+            f.write(cookies_content)
+        _COOKIES_FILE = path
+        logger.info(f"[COOKIES] Cookies YouTube berhasil dimuat dari env var.")
+        return path
+    except Exception as e:
+        logger.warning(f"[COOKIES] Gagal setup cookies: {e}")
+        return None
+
+_setup_youtube_cookies()
+
 def spotify_get_metadata(url):
     """
     Scrape judul lagu dari halaman Spotify.
@@ -814,7 +843,7 @@ def _spotify_finalize_output(out_mp3):
 
 def _build_ytdlp_opts_base(out_mp3):
     """Base yt-dlp opts yang dipakai semua strategi Spotify."""
-    return {
+    opts = {
         'format': 'bestaudio/best/worstaudio',
         'outtmpl': out_mp3 + '.%(ext)s',
         'postprocessors': [{
@@ -833,62 +862,147 @@ def _build_ytdlp_opts_base(out_mp3):
         'geo_bypass': True,
         'age_limit': 99,
     }
+    if _COOKIES_FILE and os.path.exists(_COOKIES_FILE):
+        opts['cookiefile'] = _COOKIES_FILE
+        logger.info("[COOKIES] yt-dlp pakai cookies YouTube.")
+    return opts
+
+
+# =============================================================================
+# PIPED INSTANCES — fallback otomatis kalau satu instance down
+# =============================================================================
+_PIPED_INSTANCES = [
+    "https://pipedapi.kavin.rocks",
+    "https://piped-api.lunar.icu",
+    "https://api.piped.yt",
+    "https://piped.adminforge.de/api",
+    "https://watchapi.whatever.social",
+]
+
+
+def _piped_search_and_get_url(query):
+    """
+    Cari lagu di Piped API, return direct audio stream URL.
+    Coba semua instance secara berurutan sampai ada yang berhasil.
+    Return: audio_url string atau None kalau semua gagal.
+    """
+    from urllib.parse import quote as _quote
+    for instance in _PIPED_INSTANCES:
+        try:
+            # Step 1: Search
+            search_url = f"{instance}/search?q={_quote(query)}&filter=music_songs"
+            r = requests.get(search_url, timeout=8)
+            r.raise_for_status()
+            items = r.json().get('items', [])
+            if not items:
+                # fallback: cari tanpa filter musik
+                search_url = f"{instance}/search?q={_quote(query)}&filter=videos"
+                r = requests.get(search_url, timeout=8)
+                r.raise_for_status()
+                items = r.json().get('items', [])
+            if not items:
+                logger.warning(f"[PIPED] {instance} — hasil search kosong")
+                continue
+
+            video_id = items[0].get('url', '').replace('/watch?v=', '').strip()
+            if not video_id:
+                continue
+
+            # Step 2: Get streams
+            streams_url = f"{instance}/streams/{video_id}"
+            r2 = requests.get(streams_url, timeout=8)
+            r2.raise_for_status()
+            data = r2.json()
+
+            audio_streams = data.get('audioStreams', [])
+            if not audio_streams:
+                logger.warning(f"[PIPED] {instance} — audioStreams kosong untuk {video_id}")
+                continue
+
+            # Pilih kualitas tertinggi
+            best = sorted(audio_streams, key=lambda x: x.get('bitrate', 0), reverse=True)[0]
+            audio_url = best.get('url')
+            if audio_url:
+                logger.info(f"[PIPED] Berhasil via {instance} — bitrate={best.get('bitrate')}bps")
+                return audio_url
+
+        except Exception as e:
+            logger.warning(f"[PIPED] {instance} gagal: {e}")
+            continue
+
+    return None
+
+
+def _download_piped_audio(audio_url, out_mp3):
+    """
+    Download audio URL dari Piped dan convert ke MP3 via ffmpeg.
+    Return True kalau berhasil.
+    """
+    try:
+        import subprocess as _sp
+        cmd = [
+            'ffmpeg', '-y',
+            '-i', audio_url,
+            '-vn',
+            '-acodec', 'libmp3lame',
+            '-ab', '192k',
+            '-f', 'mp3',
+            out_mp3
+        ]
+        result = _sp.run(cmd, capture_output=True, timeout=120)
+        if result.returncode == 0 and os.path.exists(out_mp3) and os.path.getsize(out_mp3) > 0:
+            logger.info(f"[PIPED] ffmpeg convert selesai: {out_mp3}")
+            return True
+        logger.warning(f"[PIPED] ffmpeg gagal: {result.stderr.decode()[:200]}")
+        return False
+    except Exception as e:
+        logger.warning(f"[PIPED] Download audio gagal: {e}")
+        return False
 
 
 def spotify_download_mp3(query, out_mp3):
     """
-    Download audio dari YouTube via ytsearch dengan multi-strategy fallback.
+    Download audio dengan multi-strategy fallback.
 
     Strategi (dijalankan urutan):
-    1. youtube_music ytsearch via web client (paling ringan, bypass 403)
-    2. YouTube reguler ytsearch via tv_embedded client (sering lolos 403)
-    3. YouTube reguler ytsearch via mweb client (fallback)
-    4. SoundCloud sebagai last-resort
-
-    HTTP 403 dari YouTube biasanya karena:
-    - player client default (android/ios) kena bot-detection
-    - Tidak ada cookies / PO token
-    Solusi: pakai player_client alternatif yang lebih longgar rate-limit-nya.
+    1. Piped API — multi-instance, no bot detection, no auth
+    2. iOS player client yt-dlp — bypass bot datacenter
+    3. android_vr player client yt-dlp
+    4. tv_embedded player client yt-dlp
+    5. SoundCloud — last-resort, no auth
     """
     import glob
 
     base_opts = _build_ytdlp_opts_base(out_mp3)
 
     # =========================================================
-    # Strategi 1: iOS player client — paling tahan bot-detection di datacenter
+    # Strategi 1: Piped API — multi-instance fallback
+    # Tidak kena bot-detection karena IP Piped yang hit YouTube
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 1 — iOS player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 1 — Piped API: {query}")
     try:
-        opts1 = {
-            **base_opts,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['ios'],
-                }
-            },
-        }
-        with yt_dlp.YoutubeDL(opts1) as ydl:
-            ydl.download([f"ytsearch1:{query}"])
-        if _spotify_finalize_output(out_mp3):
-            return
+        audio_url = _piped_search_and_get_url(query)
+        if audio_url and _download_piped_audio(audio_url, out_mp3):
+            if os.path.exists(out_mp3) and os.path.getsize(out_mp3) > 0:
+                logger.info(f"[SPOTIFY] Strategi 1 Piped berhasil!")
+                return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 1 gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 1 Piped gagal: {e}")
 
-    # Bersihkan file gagal sebelum retry
     for f in glob.glob(out_mp3 + '.*'):
         try: os.remove(f)
         except Exception: pass
 
     # =========================================================
-    # Strategi 2: android_vr player client — tidak kena bot-check datacenter
+    # Strategi 2: iOS player client — bypass bot-detection datacenter
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 2 — android_vr player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 2 — iOS player client: {query}")
     try:
         opts2 = {
             **base_opts,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android_vr'],
+                    'player_client': ['ios'],
                 }
             },
         }
@@ -904,15 +1018,15 @@ def spotify_download_mp3(query, out_mp3):
         except Exception: pass
 
     # =========================================================
-    # Strategi 3: tv_embedded client — fallback YouTube bot bypass
+    # Strategi 3: android_vr player client
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 3 — tv_embedded player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 3 — android_vr player client: {query}")
     try:
         opts3 = {
             **base_opts,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['tv_embedded'],
+                    'player_client': ['android_vr'],
                 }
             },
         }
@@ -928,20 +1042,43 @@ def spotify_download_mp3(query, out_mp3):
         except Exception: pass
 
     # =========================================================
-    # Strategi 4: SoundCloud sebagai last-resort
-    # SoundCloud tidak butuh auth, tapi kualitas/ketersediaan lagu beda
+    # Strategi 4: tv_embedded player client
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 4 — SoundCloud last-resort: {query}")
+    logger.info(f"[SPOTIFY] Strategi 4 — tv_embedded player client: {query}")
     try:
-        opts4 = {**base_opts}
+        opts4 = {
+            **base_opts,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['tv_embedded'],
+                }
+            },
+        }
         with yt_dlp.YoutubeDL(opts4) as ydl:
+            ydl.download([f"ytsearch1:{query}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 4 gagal: {e}")
+
+    for f in glob.glob(out_mp3 + '.*'):
+        try: os.remove(f)
+        except Exception: pass
+
+    # =========================================================
+    # Strategi 5: SoundCloud — last-resort, no auth needed
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 5 — SoundCloud last-resort: {query}")
+    try:
+        opts5 = {**base_opts}
+        with yt_dlp.YoutubeDL(opts5) as ydl:
             ydl.download([f"scsearch1:{query}"])
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 4 (SoundCloud) gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 5 (SoundCloud) gagal: {e}")
 
-    raise RuntimeError("Gagal mendownload audio. YouTube mungkin sedang blokir request. Coba lagi nanti.")
+    raise RuntimeError("Gagal mendownload audio. Semua strategi gagal. Coba lagi nanti.")
 
 
 # =============================================================================
@@ -1644,7 +1781,6 @@ def fast_mp3_api():
 # Mekanisme igG.py: instaloader untuk Instagram (post/reel/igtv)
 # yt-dlp untuk YouTube & Facebook
 # =============================================================================
-
 
 def _ig_parse_shortcode(url):
     """
