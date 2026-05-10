@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                          # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                         # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -962,20 +962,22 @@ def _piped_search_and_get_url(query):
     """
     Cari lagu di Piped API, return direct audio stream URL.
     Coba semua instance secara berurutan sampai ada yang berhasil.
+    Pakai proxy kalau tersedia supaya tidak kena blok dari datacenter.
     Return: audio_url string atau None kalau semua gagal.
     """
     from urllib.parse import quote as _quote
+    proxies = {'http': _YTDLP_PROXY, 'https': _YTDLP_PROXY} if _YTDLP_PROXY else None
     for instance in _PIPED_INSTANCES:
         try:
             # Step 1: Search
             search_url = f"{instance}/search?q={_quote(query)}&filter=music_songs"
-            r = requests.get(search_url, timeout=8)
+            r = requests.get(search_url, timeout=8, proxies=proxies)
             r.raise_for_status()
             items = r.json().get('items', [])
             if not items:
                 # fallback: cari tanpa filter musik
                 search_url = f"{instance}/search?q={_quote(query)}&filter=videos"
-                r = requests.get(search_url, timeout=8)
+                r = requests.get(search_url, timeout=8, proxies=proxies)
                 r.raise_for_status()
                 items = r.json().get('items', [])
             if not items:
@@ -988,7 +990,7 @@ def _piped_search_and_get_url(query):
 
             # Step 2: Get streams
             streams_url = f"{instance}/streams/{video_id}"
-            r2 = requests.get(streams_url, timeout=8)
+            r2 = requests.get(streams_url, timeout=8, proxies=proxies)
             r2.raise_for_status()
             data = r2.json()
 
@@ -1015,14 +1017,16 @@ def _invidious_search_and_get_url(query):
     """
     Cari lagu via Invidious API, return direct audio stream URL.
     Invidious lebih stabil dari Piped untuk search & stream audio.
+    Pakai proxy kalau tersedia supaya tidak kena blok dari datacenter.
     Return: audio_url string atau None kalau semua instance gagal.
     """
     from urllib.parse import quote as _quote
+    proxies = {'http': _YTDLP_PROXY, 'https': _YTDLP_PROXY} if _YTDLP_PROXY else None
     for instance in _INVIDIOUS_INSTANCES:
         try:
             # Step 1: Search video
             search_url = f"{instance}/api/v1/search?q={_quote(query)}&type=video&sort_by=relevance"
-            r = requests.get(search_url, timeout=8)
+            r = requests.get(search_url, timeout=8, proxies=proxies)
             r.raise_for_status()
             items = r.json()
             if not items:
@@ -1035,7 +1039,7 @@ def _invidious_search_and_get_url(query):
 
             # Step 2: Get video streams
             streams_url = f"{instance}/api/v1/videos/{video_id}"
-            r2 = requests.get(streams_url, timeout=8)
+            r2 = requests.get(streams_url, timeout=8, proxies=proxies)
             r2.raise_for_status()
             data = r2.json()
 
@@ -1130,21 +1134,6 @@ def spotify_download_mp3(query, out_mp3):
         logger.warning(f"[SPOTIFY] Strategi 1 YT Music gagal: {e}")
 
     _cleanup_partial()
-
-    # Strategi 1b: ytmsearch prefix (cara lain YT Music)
-    logger.info(f"[SPOTIFY] Strategi 1b — ytmsearch: {query}")
-    try:
-        opts1b = {**base_opts}
-        with yt_dlp.YoutubeDL(opts1b) as ydl:
-            ydl.download([f"ytmsearch1:{query}"])
-        if _spotify_finalize_output(out_mp3):
-            logger.info("[SPOTIFY] Strategi 1b ytmsearch berhasil!")
-            return
-    except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 1b ytmsearch gagal: {e}")
-
-    _cleanup_partial()
-    time.sleep(1)
 
     # =========================================================
     # Strategi 2: Piped API — multi-instance fallback
@@ -1463,7 +1452,7 @@ def search_videos_api():
         logger.info(f"[OK] Found {len(results)} videos (after filter)")
         return jsonify({"status": "success", "data": results})
 
-    except Exception as e:
+except Exception as e:
         logger.error(f"Search Error: {str(e)}")
         return jsonify({"status": "error", "msg": str(e)})
 
