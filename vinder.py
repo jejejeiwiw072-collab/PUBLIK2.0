@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                        # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                          # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -722,6 +722,37 @@ def process_mp3_pipeline(url, title, out_tmpl, progress_cb=None):
 
 _COOKIES_FILE = None
 
+# =============================================================================
+# PO TOKEN (Proof of Origin Token)
+# Bypass YouTube bot-detection untuk IP datacenter (Railway/VPS)
+# tanpa perlu cookies browser.
+#
+# Cara dapat PO Token:
+# 1. Buka https://www.youtube.com di browser biasa (Chrome/Firefox)
+# 2. Buka DevTools (F12) > Console
+# 3. Paste dan run script ini:
+#      copy(JSON.stringify(yt.config_.INNERTUBE_CONTEXT.client))
+# 4. Cari nilai "visitorData" dan "poToken" dari hasil JSON
+# 5. Set di Railway env var:
+#      YOUTUBE_PO_TOKEN    = nilai poToken
+#      YOUTUBE_VISITOR_DATA = nilai visitorData
+#
+# Atau pakai generator otomatis (jalankan sekali dari laptop):
+#   npx @yt-dlp/youtube-po-token-generator
+# =============================================================================
+_YT_PO_TOKEN     = os.environ.get('YOUTUBE_PO_TOKEN', '').strip()
+_YT_VISITOR_DATA = os.environ.get('YOUTUBE_VISITOR_DATA', '').strip()
+
+if _YT_PO_TOKEN:
+    logger.info("[POTOKEN] YOUTUBE_PO_TOKEN ditemukan, akan dipakai bypass bot detection.")
+else:
+    logger.warning(
+        "[POTOKEN] YOUTUBE_PO_TOKEN tidak ada di env. "
+        "Download dari Railway mungkin gagal kena bot detection YouTube. "
+        "Set env var YOUTUBE_PO_TOKEN + YOUTUBE_VISITOR_DATA untuk fix."
+    )
+
+
 def _setup_youtube_cookies():
     """Tulis env var YOUTUBE_COOKIES ke file temp, return path-nya."""
     global _COOKIES_FILE
@@ -735,7 +766,7 @@ def _setup_youtube_cookies():
         with os.fdopen(fd, 'w') as f:
             f.write(cookies_content)
         _COOKIES_FILE = path
-        logger.info(f"[COOKIES] Cookies YouTube berhasil dimuat dari env var.")
+        logger.info("[COOKIES] Cookies YouTube berhasil dimuat dari env var.")
         return path
     except Exception as e:
         logger.warning(f"[COOKIES] Gagal setup cookies: {e}")
@@ -862,9 +893,24 @@ def _build_ytdlp_opts_base(out_mp3):
         'geo_bypass': True,
         'age_limit': 99,
     }
+
+    # Inject PO Token — fix utama untuk Railway/VPS datacenter IP
+    if _YT_PO_TOKEN:
+        extractor_args = opts.get('extractor_args', {})
+        yt_args = extractor_args.get('youtube', {})
+        if _YT_VISITOR_DATA:
+            po_entry = f'webpo visitor_data={_YT_VISITOR_DATA};po_token={_YT_PO_TOKEN}'
+        else:
+            po_entry = f'webpo po_token={_YT_PO_TOKEN}'
+        yt_args['po_token'] = [po_entry]
+        extractor_args['youtube'] = yt_args
+        opts['extractor_args'] = extractor_args
+        logger.info("[POTOKEN] PO Token diinjeksi ke yt-dlp opts.")
+
     if _COOKIES_FILE and os.path.exists(_COOKIES_FILE):
         opts['cookiefile'] = _COOKIES_FILE
         logger.info("[COOKIES] yt-dlp pakai cookies YouTube.")
+
     return opts
 
 
@@ -1030,14 +1076,15 @@ def spotify_download_mp3(query, out_mp3):
     Download audio dengan multi-strategy fallback.
 
     Strategi (dijalankan urutan):
-    1. Piped API        — multi-instance, no bot detection, no auth
-    2. Invidious API    — alternatif Piped, lebih stabil
-    3. iOS player client yt-dlp — bypass bot datacenter
-    4. mweb player client yt-dlp — mirip mobile browser
-    5. android_vr player client yt-dlp
-    6. web_creator player client yt-dlp
-    7. tv_embedded player client yt-dlp
-    8. SoundCloud       — last-resort, no auth
+    1. YouTube Music (ytmsearch) — sumber utama, paling jarang kena bot detection
+    2. Piped API        — multi-instance, no bot detection, no auth
+    3. Invidious API    — alternatif Piped, lebih stabil
+    4. iOS player client yt-dlp
+    5. mweb player client yt-dlp
+    6. android_vr player client yt-dlp
+    7. web_creator player client yt-dlp
+    8. tv_embedded player client yt-dlp
+    9. SoundCloud       — last-resort, no auth
     """
     import glob
 
@@ -1049,177 +1096,182 @@ def spotify_download_mp3(query, out_mp3):
             except Exception: pass
 
     # =========================================================
-    # Strategi 1: Piped API — multi-instance fallback
-    # Tidak kena bot-detection karena IP Piped yang hit YouTube
+    # Strategi 1: YouTube Music — JAUH lebih longgar dari YouTube biasa
+    # ytmsearch pakai music.youtube.com, bot detection lebih lemah
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 1 — Piped API: {query}")
+    logger.info(f"[SPOTIFY] Strategi 1 — YouTube Music: {query}")
+    try:
+        opts1 = {
+            **base_opts,
+            'default_search': 'https://music.youtube.com/search?q=',
+        }
+        with yt_dlp.YoutubeDL(opts1) as ydl:
+            ydl.download([f"https://music.youtube.com/search?q={query}"])
+        if _spotify_finalize_output(out_mp3):
+            logger.info("[SPOTIFY] Strategi 1 YouTube Music berhasil!")
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 1 YT Music gagal: {e}")
+
+    _cleanup_partial()
+
+    # Strategi 1b: ytmsearch prefix (cara lain YT Music)
+    logger.info(f"[SPOTIFY] Strategi 1b — ytmsearch: {query}")
+    try:
+        opts1b = {**base_opts}
+        with yt_dlp.YoutubeDL(opts1b) as ydl:
+            ydl.download([f"ytmsearch1:{query}"])
+        if _spotify_finalize_output(out_mp3):
+            logger.info("[SPOTIFY] Strategi 1b ytmsearch berhasil!")
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 1b ytmsearch gagal: {e}")
+
+    _cleanup_partial()
+    time.sleep(1)
+
+    # =========================================================
+    # Strategi 2: Piped API — multi-instance fallback
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 2 — Piped API: {query}")
     try:
         audio_url = _piped_search_and_get_url(query)
         if audio_url and _download_piped_audio(audio_url, out_mp3):
             if os.path.exists(out_mp3) and os.path.getsize(out_mp3) > 0:
-                logger.info("[SPOTIFY] Strategi 1 Piped berhasil!")
+                logger.info("[SPOTIFY] Strategi 2 Piped berhasil!")
                 return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 1 Piped gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 2 Piped gagal: {e}")
 
     _cleanup_partial()
     time.sleep(1)
 
     # =========================================================
-    # Strategi 2: Invidious API — alternatif Piped, lebih stabil
+    # Strategi 3: Invidious API
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 2 — Invidious API: {query}")
+    logger.info(f"[SPOTIFY] Strategi 3 — Invidious API: {query}")
     try:
         audio_url = _invidious_search_and_get_url(query)
         if audio_url and _download_piped_audio(audio_url, out_mp3):
             if os.path.exists(out_mp3) and os.path.getsize(out_mp3) > 0:
-                logger.info("[SPOTIFY] Strategi 2 Invidious berhasil!")
+                logger.info("[SPOTIFY] Strategi 3 Invidious berhasil!")
                 return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 2 Invidious gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 3 Invidious gagal: {e}")
 
     _cleanup_partial()
     time.sleep(1)
 
     # =========================================================
-    # Strategi 3: iOS player client — bypass bot-detection datacenter
+    # Strategi 4: iOS player client
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 3 — iOS player client: {query}")
-    try:
-        opts3 = {
-            **base_opts,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['ios'],
-                }
-            },
-        }
-        with yt_dlp.YoutubeDL(opts3) as ydl:
-            ydl.download([f"ytsearch1:{query}"])
-        if _spotify_finalize_output(out_mp3):
-            return
-    except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 3 (iOS) gagal: {e}")
-
-    _cleanup_partial()
-    time.sleep(1)
-
-    # =========================================================
-    # Strategi 4: mweb player client — mirip mobile browser biasa
-    # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 4 — mweb player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 4 — iOS player client: {query}")
     try:
         opts4 = {
             **base_opts,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['mweb'],
-                }
-            },
+            'extractor_args': {**base_opts.get('extractor_args', {}), 'youtube': {'player_client': ['ios']}},
         }
         with yt_dlp.YoutubeDL(opts4) as ydl:
             ydl.download([f"ytsearch1:{query}"])
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 4 (mweb) gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 4 iOS gagal: {e}")
 
     _cleanup_partial()
     time.sleep(1)
 
     # =========================================================
-    # Strategi 5: android_vr player client
+    # Strategi 5: mweb player client
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 5 — android_vr player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 5 — mweb player client: {query}")
     try:
         opts5 = {
             **base_opts,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android_vr'],
-                }
-            },
+            'extractor_args': {**base_opts.get('extractor_args', {}), 'youtube': {'player_client': ['mweb']}},
         }
         with yt_dlp.YoutubeDL(opts5) as ydl:
             ydl.download([f"ytsearch1:{query}"])
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 5 (android_vr) gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 5 mweb gagal: {e}")
 
     _cleanup_partial()
     time.sleep(1)
 
     # =========================================================
-    # Strategi 6: web_creator player client
+    # Strategi 6: android_vr player client
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 6 — web_creator player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 6 — android_vr player client: {query}")
     try:
         opts6 = {
             **base_opts,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['web_creator'],
-                }
-            },
+            'extractor_args': {**base_opts.get('extractor_args', {}), 'youtube': {'player_client': ['android_vr']}},
         }
         with yt_dlp.YoutubeDL(opts6) as ydl:
             ydl.download([f"ytsearch1:{query}"])
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 6 (web_creator) gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 6 android_vr gagal: {e}")
 
     _cleanup_partial()
     time.sleep(1)
 
     # =========================================================
-    # Strategi 7: tv_embedded player client
+    # Strategi 7: web_creator player client
     # =========================================================
-    logger.info(f"[SPOTIFY] Strategi 7 — tv_embedded player client: {query}")
+    logger.info(f"[SPOTIFY] Strategi 7 — web_creator player client: {query}")
     try:
         opts7 = {
             **base_opts,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['tv_embedded'],
-                }
-            },
+            'extractor_args': {**base_opts.get('extractor_args', {}), 'youtube': {'player_client': ['web_creator']}},
         }
         with yt_dlp.YoutubeDL(opts7) as ydl:
             ydl.download([f"ytsearch1:{query}"])
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 7 (tv_embedded) gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 7 web_creator gagal: {e}")
 
     _cleanup_partial()
     time.sleep(1)
 
     # =========================================================
-    # Strategi 8: SoundCloud — last-resort, bersihkan query dulu
-    # Hapus kata-kata yang bikin hasil SC meleset (tahun, feat, dll)
+    # Strategi 8: tv_embedded player client
+    # =========================================================
+    logger.info(f"[SPOTIFY] Strategi 8 — tv_embedded player client: {query}")
+    try:
+        opts8 = {
+            **base_opts,
+            'extractor_args': {**base_opts.get('extractor_args', {}), 'youtube': {'player_client': ['tv_embedded']}},
+        }
+        with yt_dlp.YoutubeDL(opts8) as ydl:
+            ydl.download([f"ytsearch1:{query}"])
+        if _spotify_finalize_output(out_mp3):
+            return
+    except Exception as e:
+        logger.warning(f"[SPOTIFY] Strategi 8 tv_embedded gagal: {e}")
+
+    _cleanup_partial()
+    time.sleep(1)
+
+    # =========================================================
+    # Strategi 9: SoundCloud — last-resort
     # =========================================================
     sc_query = re.sub(r'\b(feat\.?|ft\.?|official|video|lyrics?|audio|20\d{2})\b', '', query, flags=re.IGNORECASE).strip()
-    logger.info(f"[SPOTIFY] Strategi 8 — SoundCloud last-resort: {sc_query}")
+    logger.info(f"[SPOTIFY] Strategi 9 — SoundCloud: {sc_query}")
     try:
-        opts8 = {**base_opts}
-        with yt_dlp.YoutubeDL(opts8) as ydl:
+        opts9 = {**base_opts}
+        with yt_dlp.YoutubeDL(opts9) as ydl:
             ydl.download([f"scsearch1:{sc_query}"])
         if _spotify_finalize_output(out_mp3):
             return
     except Exception as e:
-        logger.warning(f"[SPOTIFY] Strategi 8 (SoundCloud) gagal: {e}")
+        logger.warning(f"[SPOTIFY] Strategi 9 SoundCloud gagal: {e}")
 
     raise RuntimeError("Gagal mendownload audio. Semua strategi gagal. Coba lagi nanti.")
-
-
-# =============================================================================
-# ROUTES
-# =============================================================================
-
-@app.route('/api/spotify_info', methods=['POST'])
-@limiter.limit('20 per minute')
 def spotify_info_api():
     """Preview info lagu Spotify untuk ditampilin di frontend."""
     data        = request.get_json(force=True) or {}
