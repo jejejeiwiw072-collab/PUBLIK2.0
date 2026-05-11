@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                                             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                         # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1639,7 +1639,6 @@ def fast_mp3_api():
         logger.error(f"fast_mp3 error: {e}")
         return "Terjadi kesalahan saat memproses audio. Silakan coba lagi.", 500
 
-
 # =============================================================================
 # INSTAGRAM / YOUTUBE / FACEBOOK — MP4 INFO & DOWNLOAD
 # Mekanisme igG.py: instaloader untuk Instagram (post/reel/igtv)
@@ -1840,32 +1839,44 @@ def mp4_info_api():
                     "hdplay":   url,
                 })
         else:
-            ydl_opts = {
-                'format':      'bestvideo+bestaudio/best',
-                'quiet':       True,
-                'no_warnings': True,
-                'noplaylist':  True,
-                # FIX: pastikan YouTube Shorts (?si=...) tidak error karena dianggap playlist
-                'extract_flat': False,
-                # FIX: bypass YouTube bot-detection yang bikin preview kadang gagal
-                'extractor_args': {'youtube': {'player_client': ['tv_embedded', 'web']}},
+            # Pass 1: ambil metadata tanpa format resolution — tidak pernah error "format not available"
+            ydl_opts_meta = {
+                'quiet':                         True,
+                'no_warnings':                   True,
+                'noplaylist':                    True,
+                'extract_flat':                  False,
+                'skip_download':                 True,
+                'youtube_include_dash_manifest': False,
             }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
                 info = ydl.extract_info(url, download=False)
-                # FIX: pakai format_durasi (sama seperti Instagram) bukan raw string
-                dur_sec  = int(info.get('duration') or 0)
-                size_raw = info.get('filesize') or info.get('filesize_approx') or 0
-                size_str = f"{size_raw / 1024 / 1024:.2f}MB" if size_raw else "N/A"
-                return jsonify({
-                    "status":   "success",
-                    "title":    info.get('title', 'Video'),
-                    "cover":    info.get('thumbnail'),
-                    "author":   info.get('uploader') or info.get('channel', 'Unknown'),
-                    "duration": format_durasi(dur_sec),
-                    "size":     size_str,
-                    "play":     url,
-                    "hdplay":   url,
-                })
+            dur_sec  = int(info.get('duration') or 0)
+            # Pass 2: coba dapat filesize — kalau gagal, size tetap N/A, metadata tetap return
+            size_str = "N/A"
+            try:
+                ydl_opts_size = {
+                    'quiet':         True,
+                    'no_warnings':   True,
+                    'noplaylist':    True,
+                    'format':        'best',
+                    'skip_download': True,
+                }
+                with yt_dlp.YoutubeDL(ydl_opts_size) as ydl2:
+                    info2    = ydl2.extract_info(url, download=False)
+                    size_raw = info2.get('filesize') or info2.get('filesize_approx') or 0
+                    size_str = f"{size_raw / 1024 / 1024:.2f}MB" if size_raw else "N/A"
+            except Exception:
+                pass
+            return jsonify({
+                "status":   "success",
+                "title":    info.get('title', 'Video'),
+                "cover":    info.get('thumbnail'),
+                "author":   info.get('uploader') or info.get('channel', 'Unknown'),
+                "duration": format_durasi(dur_sec),
+                "size":     size_str,
+                "play":     url,
+                "hdplay":   url,
+            })
 
     except Exception as e:
         logger.error(f"[MP4INFO] Error: {e}")
