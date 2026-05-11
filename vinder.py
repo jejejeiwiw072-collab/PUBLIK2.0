@@ -53,6 +53,14 @@ TELEGRAM_NOTIF_ENABLED = True # Ganti ke True untuk aktifkan notif Telegram     
 _TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN")
 _TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
+# YouTube cookies path — taruh cookies.txt di root project atau set env var YT_COOKIES_PATH
+_YT_COOKIES_PATH = os.environ.get("YT_COOKIES_PATH", os.path.join(os.path.dirname(__file__), "cookies.txt"))
+_YT_COOKIES_PATH = _YT_COOKIES_PATH if os.path.exists(_YT_COOKIES_PATH) else None
+if _YT_COOKIES_PATH:
+    logger.info(f"[YTCOOKIES] cookies.txt ditemukan: {_YT_COOKIES_PATH}")
+else:
+    logger.warning("[YTCOOKIES] cookies.txt tidak ditemukan — YouTube mungkin kena bot-detection")
+
 if TELEGRAM_NOTIF_ENABLED and (not _TELEGRAM_TOKEN or not _TELEGRAM_CHAT_ID):
     logger.warning(
         "[NOTIF] TELEGRAM_TOKEN atau TELEGRAM_CHAT_ID tidak ditemukan di env. "
@@ -558,7 +566,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                                             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                         # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1847,9 +1855,9 @@ def mp4_info_api():
                 'extract_flat':                  False,
                 'skip_download':                 True,
                 'youtube_include_dash_manifest': False,
-                # FIX: android client bypass bot-detection YouTube di datacenter IP
-                'extractor_args': {'youtube': {'player_client': ['android']}},
             }
+            if _YT_COOKIES_PATH:
+                ydl_opts_meta['cookiefile'] = _YT_COOKIES_PATH
             with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
                 info = ydl.extract_info(url, download=False)
             dur_sec  = int(info.get('duration') or 0)
@@ -1862,9 +1870,9 @@ def mp4_info_api():
                     'noplaylist':    True,
                     'format':        'best',
                     'skip_download': True,
-                    # FIX: android client bypass bot-detection YouTube di datacenter IP
-                    'extractor_args': {'youtube': {'player_client': ['android']}},
                 }
+                if _YT_COOKIES_PATH:
+                    ydl_opts_size['cookiefile'] = _YT_COOKIES_PATH
                 with yt_dlp.YoutubeDL(ydl_opts_size) as ydl2:
                     info2    = ydl2.extract_info(url, download=False)
                     size_raw = info2.get('filesize') or info2.get('filesize_approx') or 0
@@ -2053,7 +2061,7 @@ def _analisis_groq_daily(error_detail):
                     },
                     {
                         "role": "user",
-                        "content": f"Health check Vinder gagal. Detail error:\n{error_detail}"
+                        "content":  f"Health check Vinder gagal. Detail error:\n{error_detail}"
                     }
                 ],
                 "max_tokens": 200,
