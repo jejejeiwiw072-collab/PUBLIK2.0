@@ -1025,7 +1025,7 @@ def spotify_mp3_api():
         out_mp3 = tmp_base + '.mp3'
         spotify_download_mp3(query, out_mp3)
 
-        if not os.path.exists(out_mp3):
+           if not os.path.exists(out_mp3):
             return "Gagal memproses audio, silakan coba lagi.", 500
 
         filename  = f"[Vinder].{safe_filename(final_title)}.mp3"
@@ -1449,6 +1449,7 @@ def get_mp3_file_api():
     )
 
 
+
 @app.route('/api/get_mp3')
 def get_mp3_api():
     """Endpoint fallback MP3 tanpa SSE (satu request langsung)."""
@@ -1847,7 +1848,7 @@ def mp4_info_api():
                     "hdplay":   url,
                 })
         else:
-            # Pass 1: ambil metadata tanpa format resolution — tidak pernah error "format not available"
+            # Pass 1: ambil metadata — format chain toleran agar tidak error "format not available"
             ydl_opts_meta = {
                 'quiet':                         True,
                 'no_warnings':                   True,
@@ -1855,6 +1856,7 @@ def mp4_info_api():
                 'extract_flat':                  False,
                 'skip_download':                 True,
                 'youtube_include_dash_manifest': False,
+                'format':                        'best/bestvideo+bestaudio/worst',
             }
             if _YT_COOKIES_PATH:
                 ydl_opts_meta['cookiefile'] = _YT_COOKIES_PATH
@@ -1868,7 +1870,7 @@ def mp4_info_api():
                     'quiet':         True,
                     'no_warnings':   True,
                     'noplaylist':    True,
-                    'format':        'best',
+                    'format':        'best/bestvideo+bestaudio/worst',
                     'skip_download': True,
                 }
                 if _YT_COOKIES_PATH:
@@ -1877,8 +1879,8 @@ def mp4_info_api():
                     info2    = ydl2.extract_info(url, download=False)
                     size_raw = info2.get('filesize') or info2.get('filesize_approx') or 0
                     size_str = f"{size_raw / 1024 / 1024:.2f}MB" if size_raw else "N/A"
-            except Exception:
-                pass
+            except Exception as e2:
+                logger.warning(f"[MP4INFO] Pass2 size gagal (non-fatal): {e2}")
             return jsonify({
                 "status":   "success",
                 "title":    info.get('title', 'Video'),
@@ -2061,7 +2063,7 @@ def _analisis_groq_daily(error_detail):
                     },
                     {
                         "role": "user",
-                        "content":  f"Health check Vinder gagal. Detail error:\n{error_detail}"
+                        "content": f"Health check Vinder gagal. Detail error:\n{error_detail}"
                     }
                 ],
                 "max_tokens": 200,
