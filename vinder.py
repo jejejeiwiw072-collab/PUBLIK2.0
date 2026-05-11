@@ -558,7 +558,7 @@ def embed_cover(mp3_path, cover_path):
             capture_output=True,
             timeout=15,
         )
-                         # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
+                                             # Step 2: embed via mutagen ID3 APIC tag langsung ke MP3
         # Mutagen tulis ID3 tag native - tidak ada container MP4, tidak ada video stream
         from mutagen.id3 import ID3, APIC, error as ID3Error
 
@@ -1847,6 +1847,8 @@ def mp4_info_api():
                 'extract_flat':                  False,
                 'skip_download':                 True,
                 'youtube_include_dash_manifest': False,
+                # FIX: android client bypass bot-detection YouTube di datacenter IP
+                'extractor_args': {'youtube': {'player_client': ['android']}},
             }
             with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -1860,6 +1862,8 @@ def mp4_info_api():
                     'noplaylist':    True,
                     'format':        'best',
                     'skip_download': True,
+                    # FIX: android client bypass bot-detection YouTube di datacenter IP
+                    'extractor_args': {'youtube': {'player_client': ['android']}},
                 }
                 with yt_dlp.YoutubeDL(ydl_opts_size) as ydl2:
                     info2    = ydl2.extract_info(url, download=False)
