@@ -751,7 +751,7 @@
     }
     .modal-upload-area:hover { border-color: var(--accent); background: rgba(37,99,235,0.04); }
     .modal-upload-area p { font-size: 13px; color: var(--muted2); margin-top: 6px; }
-     .modal-upload-area .upload-icon { font-size: 24px; }
+       .modal-upload-area .upload-icon { font-size: 24px; }
     .upload-preview {
       display: flex;
       align-items: center;
@@ -1197,7 +1197,7 @@
       .navbar-brand { font-size: 22px; left: 136px; }
       .version-badge { font-size: 10px; }
       .features-heading { font-size: 36px; }
-      .features-sub { font-size: 15px; margin-bottom: 28px; }
+       .features-sub { font-size: 15px; margin-bottom: 28px; }
       .features-grid { gap: 18px; }
       .feat-card { padding: 24px 20px; }
       .feat-icon { font-size: 30px; }
@@ -1262,7 +1262,7 @@
               <div style="height:1px; background:var(--border);"></div>
               <div onclick="pickPlatform('Instagram',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#777; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">Instagram</div>
               <div style="height:1px; background:var(--border);"></div>
-            <div onclick="pickPlatform('Spotify',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#777; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">Spotify</div>
+              <div onclick="pickPlatform('Spotify',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#777; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">Spotify</div>
             </div>
           </div>
         </div>
@@ -1637,7 +1637,7 @@
       const fmtToggle = document.getElementById('format-toggle');
       fmtToggle.style.opacity = '0';
       setTimeout(() => { if (fmtToggle.style.opacity === '0') fmtToggle.style.display = 'none'; }, 350);
-      if (url.startsWith('http') && !isSupportedUrl(url)) {
+       if (url.startsWith('http') && !isSupportedUrl(url)) {
         const statusEl = document.getElementById('url-status');
         statusEl.textContent = '❌ Platform tidak didukung. Gunakan link TikTok, YouTube, Instagram, Facebook, atau Spotify.';
         statusEl.className = 'status-txt err';
@@ -1772,6 +1772,9 @@
         btnDl.disabled = false;
         btnDl.textContent = 'Download Langsung';
         currentPreviewData = null;
+        lastUrl = ''; // reset agar user bisa retry URL yang sama
+        document.getElementById('url-status').textContent = '⚠️ Gagal membaca info video. Coba paste ulang atau langsung klik Download.';
+        document.getElementById('url-status').className = 'status-txt err';
         // Kembalikan tombol normal kalau error
         document.getElementById('fmt-mp4').style.display = '';
         document.getElementById('fmt-mp3').style.flex    = '1';
@@ -2189,7 +2192,7 @@
       previewDiv.innerHTML = `
         <div class="upload-preview">
           <img src="${e.target.result}" alt="preview">
-          <span>${file.name}</span>
+         <span>${file.name}</span>
           <button onclick="removePhoto()">✕</button>
         </div>
       `;
@@ -2224,7 +2227,7 @@
     document.getElementById('donate-modal').classList.remove('open');
   }
 
-    /* ===== CHANGELOG ===== */
+  /* ===== CHANGELOG ===== */
   function showChangelog() {
     const log = [
       { v: 'v1.9', note: 'Features section, platform badges & footer' },
