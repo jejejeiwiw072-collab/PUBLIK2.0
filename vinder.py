@@ -488,6 +488,7 @@ def download_audio_ytdlp(url, out_mp3):
         'quiet':         True,
         'no_warnings':   True,
         'noplaylist':    True,
+        'proxy':         _YTDLP_PROXY if _YTDLP_PROXY else None,
         'user_agent':    TIKTOK_UA,
         'http_headers':  DEFAULT_HEADERS,
         'postprocessors': [{
@@ -726,7 +727,12 @@ _COOKIES_FILE = None
 # Aktifkan kembali jika sudah ada proxy residensial yang stabil.
 _YT_PO_TOKEN     = ''
 _YT_VISITOR_DATA = ''
-_YTDLP_PROXY     = ''
+_YTDLP_PROXY     = os.environ.get('YTDLP_PROXY', '')
+
+if _YTDLP_PROXY:
+    logger.info("[PROXY] ✅ Proxy Residensial telah Active.")
+else:
+    logger.info("[PROXY] Tidak ada proxy dikonfigurasi (YTDLP_PROXY kosong).")
 
 
 def _setup_youtube_cookies():
@@ -1510,6 +1516,7 @@ def download_url_api():
         'quiet':        True,
         'no_warnings':  True,
         'noplaylist':   True,
+        'proxy':        _YTDLP_PROXY if _YTDLP_PROXY else None,
         'user_agent':   TIKTOK_UA,
         'http_headers': DEFAULT_HEADERS,
     }
@@ -2458,5 +2465,7 @@ if __name__ == "__main__":
     threading.Thread(target=_self_ping_loop, daemon=True).start()
     threading.Thread(target=_daily_health_loop, daemon=True).start()
     kirim_notif("Sistem Vinder Berhasil ON di Railway!")
+    if _YTDLP_PROXY:
+        kirim_notif("🌐 Proxy Residensial telah Active.")
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
