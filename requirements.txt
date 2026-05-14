@@ -8,3 +8,4 @@ mutagen
 flask-limiter
 instaloader
 facebook-scraper
+lxml_html_clean
