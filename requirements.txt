@@ -7,5 +7,4 @@ gunicorn
 mutagen
 flask-limiter
 instaloader
-bgutil-ytdlp-pot-provider
-yt-dlp>=2025.5.22
+facebook-scraper
