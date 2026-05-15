@@ -1,0 +1,2223 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta name="google-site-verification" content="GHstpy6snm1A3qBy0j__vRBFzDGW8xj7Ct5HfsCrtCw" />
+  <link rel="icon" type="image/png" href="/Iconweb.png">
+<link rel="apple-touch-icon" href="/Iconweb.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Vinder",
+  "operatingSystem": "All",
+  "applicationCategory": "MultimediaApplication",
+  "offers": {
+    "@type": "Offer",
+    "price": "0"
+  }
+}
+</script>
+ <title>Vinder - Video / audio Downloader High Quality</title>
+<meta name="description" content="Vinder HYPE v1.3: Download video dan audio kualitas TINGGI tanpa batas. Cepat, gratis, dan tanpa iklan.">
+
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ===== CSS VARIABLES ===== */
+    :root {
+      --bg: #000000;
+      --card: #111111;
+      --card2: #161616;
+      --border: #242424;
+      --border-bright: #333;
+      --text: #e8e8e8;
+      --muted: #555;
+      --muted2: #777;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-glow: rgba(37,99,235,0.25);
+      --success: #16a34a;
+      --error: #dc2626;
+      --mp4-active: #2563eb;
+      --mp3-active: #9333ea;
+      --mp3-glow: rgba(147,51,234,0.25);
+      --donate: #f59e0b;
+      --donate-dark: #b45309;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      padding: 0 0 120px;
+      overflow-x: hidden;
+    }
+
+    /* ===== NAVBAR ===== */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .version-badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      background: #1a1a1a;
+      border: 1px solid var(--border-bright);
+      color: var(--muted2);
+      padding: 3px 7px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .navbar-brand {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      position: absolute;
+      left: 109px;
+      color: var(--text);
+    }
+
+    .navbar-brand span {
+      color: var(--accent);
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .main-content {
+      padding: 20px 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 14px;
+      transition: border-color 0.3s;
+    }
+    .card:hover { border-color: var(--border-bright); }
+
+    .card-title {
+      font-family: Sans-Serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: #ebebeb;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 14px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .card-header .card-title { margin-bottom: 0; }
+
+    /* ===== INPUT ===== */
+    .input-wrapper {
+      position: relative;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .input-wrapper input { margin-bottom: 0; padding-right: 40px; }
+
+    input {
+      width: 100%;
+      background: #0a0a0a;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      margin-bottom: 10px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    input::placeholder { color: var(--muted); }
+
+    .clear-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      cursor: pointer;
+      display: none;
+      font-size: 16px;
+      padding: 5px;
+      user-select: none;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .clear-btn:hover { color: var(--text); }
+
+    /* ===== BUTTONS ===== */
+    button {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 9px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      letter-spacing: 0.3px;
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled { background: #222; color: #555; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-dl {
+      background: #0e1f0e;
+      color: #4ade80;
+      border: 1px solid #1a3a1a;
+      padding: 9px;
+      font-size: 13px;
+      border-radius: 7px;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-dl:hover { background: #152a15; box-shadow: 0 2px 12px rgba(74,222,128,0.15); }
+    .btn-dl:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ===== FORMAT TOGGLE (MP4 / MP3) ===== */
+    .format-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .fmt-btn {
+      flex: 1;
+      font-family: Sans-Serif;
+      padding: 9px 0;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border: 1px solid var(--border-bright);
+      background: #111;
+      color: var(--muted2);
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      width: auto;
+    }
+
+    .fmt-btn.active-mp4 {
+      background: rgba(37,99,235,0.15);
+      border-color: var(--mp4-active);
+      color: #60a5fa;
+      box-shadow: 0 0 16px rgba(37,99,235,0.2);
+    }
+
+    .fmt-btn.active-mp3 {
+      background: rgba(147,51,234,0.15);
+      border-color: var(--mp3-active);
+      color: #c084fc;
+      box-shadow: 0 0 16px var(--mp3-glow);
+    }
+
+    .fmt-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    /* ===== RESOLUTION DROPDOWN ===== */
+    .res-trigger { position: relative; display: inline-block; }
+    .res-btn {
+      width: auto;
+      padding: 5px 10px;
+      border-radius: 16px;
+      border: none;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+      transition: background 0.15s;
+      min-width: 60px;
+      min-height: 30px;
+      justify-content: center;
+      border: 1px solid var(--border-bright);
+    }
+    .res-btn:hover { background: #222; }
+    .res-btn .arrow { font-size: 9px; opacity: 0.4; }
+
+    .res-popup {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      background: #191919;
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 9999;
+      min-width: 210px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.8);
+    }
+    .res-popup.open { display: block; animation: fadeIn 0.15s ease; }
+    .res-option {
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.1s;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      position: relative;
+    }
+    .res-option:hover { background: #252525; }
+    .res-opt-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #aaa;
+    }
+    .res-option.selected .res-opt-title { color: var(--accent); }
+    .res-opt-desc {
+      color: #666;
+      font-size: 10px;
+      font-family: 'DM Sans', sans-serif;
+      line-height: 1.3;
+    }
+    .res-option:hover .res-opt-desc { color: #aaa; }
+    .res-option.selected::after {
+      content: '✓';
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: var(--accent);
+    }
+    .res-divider { height: 1px; background: var(--border); }
+
+    /* ===== RAINBOW TEXT ===== */
+    .rainbow-text {
+      font-weight: bold;
+      background: linear-gradient(to right, #9333ea, #2563eb, #ef4444, #9333ea);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: elegant-move 5s ease infinite;
+      font-weight: 800;
+      display: inline-block;
+      filter: drop-shadow(0 0 2px rgba(147,51,234,0.3));
+    }
+    @keyframes elegant-move {
+      0% { background-position: 0% center; }
+      50% { background-position: 100% center; }
+      100% { background-position: 0% center; }
+    }
+
+    /* ===== PREVIEW CARD ===== */
+    #url-preview-container { margin-top: 12px; display: none; }
+    .preview-card {
+      background: #0a0a0a;
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      animation: fadeIn 0.3s ease;
+    }
+    .preview-thumb {
+      width: 60px;
+      height: 80px;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+    .preview-info { flex: 1; min-width: 0; }
+    .preview-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .preview-meta {
+      font-size: 11px;
+      color: var(--muted2);
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* ===== STATUS TEXT ===== */
+    .status-txt { font-size: 12px; margin-top: 8px; color: var(--muted); min-height: 18px; }
+    .status-txt.ok  { color: #4ade80; }
+    .status-txt.err { color: #f87171; }
+
+    /* ===== RESULTS ===== */
+    #results { margin-top: 10px; }
+    .video-item {
+      background: #0d0d0d;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      transition: border-color 0.2s;
+    }
+    .video-item:hover { border-color: var(--border-bright); }
+    .video-thumb {
+      width: 85px;
+      height: 120px;
+      background: #1a1a1a;
+      border-radius: 7px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .video-info { flex: 1; min-width: 0; }
+    .video-title {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .video-meta {
+      font-size: 11px;
+      color: var(--muted2);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .meta-tag {
+      background: #1a1a1a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #2a2a2a;
+    }
+
+    /* ===== AUDIO CARD ===== */
+    .audio-card {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid #2b2b2b;
+      box-shadow: 0 0 20px rgba(66,48,143,0.2);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 0;
+    }
+    .audio-card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      display: block;
+      opacity: 0.85;
+    }
+    .audio-card-content { padding: 16px; }
+    .audio-card-title {
+      font-family: Sans-Serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #ebebeb;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .audio-card-desc { font-size: 13px; color: #666; line-height: 1.5; }
+
+    /* ===== DOWNLOAD BUBBLE ===== */
+    #dl-container {
+      position: fixed;
+      bottom: 20px;
+      left: 16px;
+      right: 16px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .dl-bubble {
+      background: #181818;
+      border: 1px solid var(--border-bright);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+      pointer-events: all;
+      animation: slideUp 0.3s ease;
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    .dl-bubble.fade-out { opacity: 0; transform: translateY(20px); }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .dl-bubble-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .dl-bubble-icon.loading { background: #1a2540; animation: pulse 1.2s infinite; }
+    .dl-bubble-icon.success { background: #0e2a0e; }
+    .dl-bubble-icon.error   { background: #2a0e0e; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .dl-bubble-text { flex: 1; min-width: 0; }
+    .dl-bubble-label {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dl-bubble-sub { font-size: 11px; color: var(--muted2); }
+    .dl-progress {
+      height: 3px;
+      background: #2a2a2a;
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .dl-progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+    .dl-progress-bar.done { width: 100%; background: #4ade80; transition: width 0.15s ease; }
+    .dl-progress-bar.fail { width: 100%; background: var(--error); }
+    .dl-progress-bar.indeterminate {
+      width: 40%;
+      background: linear-gradient(90deg, transparent, var(--accent), #9333ea, transparent);
+      background-size: 200% 100%;
+      animation: shimmer-slide 1.6s ease-in-out infinite;
+    }
+    @keyframes shimmer-slide {
+      0%   { transform: translateX(-150%); }
+      100% { transform: translateX(350%); }
+    }
+    .dl-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      width: auto;
+      padding: 4px 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ===== FEEDBACK FLOATING BUTTON ===== */
+    .fab-group {
+      position: fixed;
+      bottom: 24px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      z-index: 998;
+    }
+
+    .fab-donate {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      border: none;
+      border-radius: 50%;
+      width: 46px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      box-shadow: 0 4px 24px rgba(245,158,11,0.4);
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      text-decoration: none;
+      padding: 0;
+    }
+    .fab-donate:hover {
+      transform: translateY(-2px) scale(1.08);
+      box-shadow: 0 8px 30px rgba(245,158,11,0.55);
+    }
+    .fab-donate .donate-icon { font-size: 20px; line-height: 1; }
+
+    .fab-feedback {
+      background: #1a1a1a;
+      border: 1px solid var(--border-bright);
+      border-radius: 50%;
+      width: 46px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      transition: all 0.2s;
+      width: auto;
+      padding: 0;
+      width: 46px;
+    }
+    .fab-feedback:hover {
+      background: #242424;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+
+    /* ===== FEEDBACK MODAL ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(6px);
+      z-index: 2000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal-sheet {
+      background: #141414;
+      border: 1px solid var(--border-bright);
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 36px;
+      width: 100%;
+      max-width: 520px;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .modal-overlay.open .modal-sheet {
+      transform: translateY(0);
+    }
+    .modal-handle {
+      width: 36px;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      margin: 0 auto 20px;
+    }
+    .modal-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+    .modal-subtitle {
+      font-size: 13px;
+      color: var(--muted2);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .modal-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+    .modal-input {
+      width: 100%;
+      background: #0a0a0a;
+      border: 1px solid var(--border-bright);
+      border-radius: 9px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .modal-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    textarea.modal-input {
+      resize: vertical;
+      min-height: 100px;
+      line-height: 1.5;
+    }
+    .modal-upload-area {
+      border: 1.5px dashed var(--border-bright);
+      border-radius: 9px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 14px;
+    }
+    .modal-upload-area:hover { border-color: var(--accent); background: rgba(37,99,235,0.04); }
+    .modal-upload-area p { font-size: 13px; color: var(--muted2); margin-top: 6px; }
+    .modal-upload-area .upload-icon { font-size: 24px; }
+    .upload-preview {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0a0a0a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: var(--muted2);
+    }
+                            .upload-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+    .upload-preview span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .upload-preview button {
+      width: auto;
+      padding: 4px 8px;
+      font-size: 12px;
+      background: #1e1e1e;
+      color: var(--muted2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .modal-footer {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+   
+    .btn-cancel {
+      flex: 1;
+      background: #1a1a1a;
+      border: 1px solid var(--border-bright);
+      color: var(--muted2);
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 9px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-cancel:hover { background: #222; }
+    .btn-send {
+      flex: 2;
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 9px;
+      padding: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-send:hover { background: var(--accent-hover); box-shadow: 0 4px 16px var(--accent-glow); }
+
+    /* ===== DONATE MODAL ===== */
+    .donate-modal-sheet {
+      background: #141414;
+      border: 1px solid #2a2010;
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 40px;
+      width: 100%;
+      max-width: 520px;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .modal-overlay.open .donate-modal-sheet {
+      transform: translateY(0);
+    }
+    .donate-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .donate-emoji { font-size: 40px; margin-bottom: 10px; }
+    .donate-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 17px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .donate-desc { font-size: 13px; color: var(--muted2); line-height: 1.6; }
+    .donate-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .donate-option {
+      background: #0d0d0d;
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .donate-option:hover {
+      background: #141414;
+      border-color: #f59e0b;
+      box-shadow: 0 4px 20px rgba(245,158,11,0.12);
+      transform: translateX(2px);
+    }
+    .donate-opt-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .donate-opt-info { flex: 1; }
+    .donate-opt-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .donate-opt-desc { font-size: 12px; color: var(--muted2); }
+    .donate-opt-arrow { color: var(--muted); font-size: 16px; }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card { animation: fadeInUp 0.4s ease backwards; }
+    .card:nth-child(1) { animation-delay: 0.05s; }
+    .card:nth-child(2) { animation-delay: 0.1s; }
+    .card:nth-child(3) { animation-delay: 0.15s; }
+
+    /* ===== DIVIDER ===== */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--border-bright), transparent);
+      margin: 4px 0 14px;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+
+    /* ===== FEATURES SECTION ===== */
+    .features-section {
+      padding: 28px 16px 0;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .features-heading {
+      text-align: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #60a5fa 0%, #c084fc 50%, #4ade80 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: elegant-move 6s ease infinite;
+      margin-bottom: 6px;
+      letter-spacing: -0.3px;
+    }
+
+    .features-sub {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted2);
+      margin-bottom: 20px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .feat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      cursor: default;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feat-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    .feat-card.glow-blue::before   { background: radial-gradient(circle at 50% 0%, rgba(37,99,235,0.18) 0%, transparent 70%); }
+    .feat-card.glow-purple::before { background: radial-gradient(circle at 50% 0%, rgba(147,51,234,0.18) 0%, transparent 70%); }
+    .feat-card.glow-green::before  { background: radial-gradient(circle at 50% 0%, rgba(74,222,128,0.15) 0%, transparent 70%); }
+    .feat-card.glow-amber::before  { background: radial-gradient(circle at 50% 0%, rgba(245,158,11,0.18) 0%, transparent 70%); }
+
+    .feat-card:hover { transform: translateY(-2px); }
+    .feat-card:hover::before { opacity: 1; }
+    .feat-card.glow-blue:hover   { border-color: rgba(37,99,235,0.6);  box-shadow: 0 0 22px rgba(37,99,235,0.2); }
+    .feat-card.glow-purple:hover { border-color: rgba(147,51,234,0.6); box-shadow: 0 0 22px rgba(147,51,234,0.2); }
+    .feat-card.glow-green:hover  { border-color: rgba(74,222,128,0.5); box-shadow: 0 0 22px rgba(74,222,128,0.15); }
+    .feat-card.glow-amber:hover  { border-color: rgba(245,158,11,0.5); box-shadow: 0 0 22px rgba(245,158,11,0.15); }
+
+    .feat-icon {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .feat-title {
+      font-family: Sans-Serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .feat-desc {
+      font-size: 12px;
+      color: var(--muted2);
+      line-height: 1.5;
+    }
+
+    /* ===== PLATFORM BADGES ===== */
+    .platform-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 28px;
+    }
+
+    .plat-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted2);
+      letter-spacing: 0.3px;
+    }
+
+    .plat-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ===== FOOTER ===== */
+    .site-footer {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 18px 16px 100px;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .footer-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .footer-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .footer-ver {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 6px;
+    }
+
+    .footer-link {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted2);
+      text-decoration: none;
+      background: #161616;
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .footer-link:hover { color: var(--text); border-color: var(--border-bright); background: #1e1e1e; }
+    .footer-link.donate-link:hover { border-color: var(--donate); color: var(--donate); }
+
+    .footer-credit {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .footer-credit span {
+      font-family: 'Space Mono', monospace;
+      color: var(--muted2);
+    }
+
+    /* ===== TICKER ===== */
+    .ticker-wrap {
+      overflow: hidden;
+      width: 80%;
+      margin: 0 auto 14px;
+      padding: 6px 0;
+      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%);
+      mask-image: linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%);
+    }
+    .ticker-track {
+      display: flex;
+      width: max-content;
+      animation: ticker-scroll 5s linear infinite;
+      will-change: transform;
+    }
+    .ticker-item {
+      padding: 0 28px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--muted2);
+      white-space: nowrap;
+    }
+    .ticker-item.c1 { color: #60a5fa; }
+    .ticker-item.c2 { color: #c084fc; }
+    .ticker-item.c3 { color: #4ade80; }
+    @keyframes ticker-scroll {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ===== RESPONSIVE BREAKPOINTS ===== */
+
+    /* --- Mobile kecil: < 360px --- */
+    @media (max-width: 359px) {
+      .main-content { padding: 14px 10px; }
+      .card { padding: 14px; border-radius: 12px; }
+      .navbar { padding: 0 10px; }
+      .navbar-brand { font-size: 15px; left: 92px; }
+      .version-badge { font-size: 8px; padding: 2px 5px; }
+      .features-section { padding: 20px 10px 0; }
+      .features-grid { gap: 8px; }
+      .feat-card { padding: 12px 10px; }
+      .feat-title { font-size: 10px; }
+      .feat-desc { font-size: 11px; }
+      .site-footer { padding: 14px 10px 80px; }
+      .footer-links { gap: 4px; }
+      .footer-link { font-size: 11px; padding: 4px 8px; }
+      #dl-container { left: 8px; right: 8px; }
+    }
+
+    /* --- Tablet portrait & small laptop (600px – 1023px) --- */
+    @media (min-width: 600px) {
+      .main-content { max-width: 720px; padding: 28px 24px; }
+      .features-section { max-width: 720px; padding: 36px 24px 0; }
+      .site-footer { max-width: 720px; padding: 20px 24px 100px; }
+      .features-grid { gap: 14px; }
+      .feat-card { padding: 20px 18px; }
+      .features-heading { font-size: 26px; }
+      .features-sub { font-size: 14px; }
+      .card { padding: 22px; border-radius: 18px; }
+      .navbar { padding: 0 24px; }
+    }
+
+    /* --- Laptop & desktop (1024px – 1439px) --- */
+    @media (min-width: 1024px) {
+      body { padding-bottom: 80px; }
+      .main-content {
+        max-width: 860px;
+        padding: 36px 32px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+      .main-content > .card:first-child { grid-column: 1 / -1; }
+      .features-section { max-width: 860px; padding: 44px 32px 0; }
+      .features-grid { grid-template-columns: repeat(4, 1fr); gap: 14px; }
+      .site-footer { max-width: 860px; padding: 22px 32px 80px; }
+      .navbar { padding: 0 32px; height: 58px; }
+      .navbar-brand { font-size: 20px; left: 120px; }
+      .features-heading { font-size: 30px; }
+      .card { border-radius: 18px; padding: 24px; }
+      #dl-container { left: 50%; transform: translateX(-50%); width: 480px; right: auto; }
+      .fab-group { right: 32px; bottom: 32px; }
+    }
+
+    /* --- Large desktop & TV (1440px – 1919px) --- */
+    @media (min-width: 1440px) {
+      .main-content { max-width: 1100px; padding: 48px 40px; gap: 22px; }
+      .features-section { max-width: 1100px; padding: 56px 40px 0; }
+      .site-footer { max-width: 1100px; padding: 28px 40px 80px; }
+      .navbar { padding: 0 48px; height: 64px; }
+      .navbar-brand { font-size: 22px; left: 136px; }
+      .version-badge { font-size: 10px; }
+      .features-heading { font-size: 36px; }
+      .features-sub { font-size: 15px; margin-bottom: 28px; }
+      .features-grid { gap: 18px; }
+      .feat-card { padding: 24px 20px; }
+      .feat-icon { font-size: 30px; }
+      .feat-title { font-size: 12px; }
+      .feat-desc { font-size: 13px; }
+      .card { padding: 28px; }
+      input { font-size: 15px; padding: 14px 16px; }
+      button { font-size: 15px; padding: 15px; }
+      #dl-container { width: 520px; }
+    }
+
+    /* --- Ultra-wide / 4K TV (1920px+) --- */
+    @media (min-width: 1920px) {
+      .main-content { max-width: 1320px; padding: 60px 48px; gap: 26px; }
+      .features-section { max-width: 1320px; padding: 64px 48px 0; }
+      .site-footer { max-width: 1320px; padding: 32px 48px 80px; }
+      .navbar { padding: 0 64px; height: 72px; }
+      .navbar-brand { font-size: 24px; left: 148px; }
+      .features-heading { font-size: 42px; }
+      .features-grid { gap: 22px; }
+      .feat-card { padding: 28px 24px; }
+      .feat-icon { font-size: 34px; }
+      .card { border-radius: 22px; padding: 32px; }
+      input { font-size: 16px; padding: 15px 18px; }
+      button { font-size: 16px; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== NAVBAR ===== -->
+  <nav class="navbar">
+    <div class="navbar-left">
+      <span class="version-badge">v2.0</span>
+      <img src="IconT.png" style="width: 40px; height: 40px;">
+      <span class="navbar-brand">Vinder</span>
+    </div>
+    <div class="navbar-right">
+      <span style="font-family:'Space Mono',monospace; font-size:18px; color:var(--muted2); letter-spacing:0.5px;">zakdev_<</span>
+    </div>
+  </nav>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main-content"> 
+
+    <!-- CARD: Cari Video -->
+    <div class="card">
+      <div class="card-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="card-title" style="margin-bottom:0;">Cari Video</div>
+          <div style="position:relative;" id="platformTrigger">
+            <button onclick="togglePlatformPopup()" id="platformBtn" style="width:auto; padding:3px 8px; border-radius:4px; border:1px solid #2a2a2a; background:transparent; font-family:'Space Mono',monospace; font-size:11px; font-weight:700; color:#555; cursor:pointer; display:flex; align-items:center; gap:4px; min-height:26px;">
+              <span id="platformLabel" style="color:#2563eb;">TikTok</span>
+              <span style="font-size:9px; opacity:0.4;">▼</span>
+            </button>
+            <div id="platformPopup" style="display:none; position:absolute; left:0; top:calc(100% + 6px); background:#191919; border:1px solid var(--border-bright); border-radius:12px; overflow:hidden; z-index:9999; min-width:130px; box-shadow:0 12px 40px rgba(0,0,0,0.8);">
+              <div onclick="pickPlatform('TikTok',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#2563eb; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">TikTok</div>
+              <div style="height:1px; background:var(--border);"></div>
+              <div onclick="pickPlatform('Facebook',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#777; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">Facebook</div>
+              <div style="height:1px; background:var(--border);"></div>
+              <div onclick="pickPlatform('Instagram',this)" style="padding:10px 16px; cursor:pointer; font-size:13px; font-weight:600; color:#777; transition:background 0.1s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">Instagram</div>
+            </div>
+          </div>
+        </div>
+        <div class="res-trigger" id="triggerSearch">
+          <button class="res-btn" onclick="togglePopup('popupSearch')">
+            <span class="rainbow-text" id="labelSearch">HYPE v1.3</span>
+            <span class="arrow">▼</span>
+          </button>
+          <div class="res-popup" id="popupSearch">
+            <div class="res-option selected" onclick="pickRes('Search','HYPE v1.3',this)">
+              <span class="res-opt-title rainbow-text">HYPE v1.3</span>
+              <span class="res-opt-desc">Cocok untuk mengunduh video dengan resolusi tak terbatas 1080p+</span>
+            </div>
+            <div class="res-divider"></div>
+                        <div class="res-option" onclick="pickRes('Search','720p',this)">
+              <span class="res-opt-title">720p</span>
+              <span class="res-opt-desc">Kualitas standar HD</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="input-wrapper">
+        <input id="kw" placeholder="Keyword pencarian..." type="text"/>
+        <span class="clear-btn" id="clear-kw" onclick="clearInput('kw')">✕</span>
+      </div>
+      <div class="input-wrapper" style="display:flex; align-items:center; gap:8px;">
+        <div style="position:relative; flex:1;">
+          <input id="filter" placeholder="Min. durasi (opsional)" type="number" min="0" style="padding-right:36px;"/>
+          <span class="clear-btn" id="clear-filter" onclick="clearInput('filter')">✕</span>
+        </div>
+        <span style="font-family:'Space Mono',monospace; font-size:12px; font-weight:700; color:var(--muted2); background:#1a1a1a; border:1px solid var(--border-bright); border-radius:6px; padding:6px 10px; flex-shrink:0; user-select:none;">s</span>
+      </div>
+      <div class="input-wrapper">
+        <input id="limit" max="50" min="1" placeholder="Jumlah hasil (1–20)" type="number" value=""/>
+        <span class="clear-btn" id="clear-limit" onclick="clearInput('limit')">✕</span>
+      </div>
+      <button class="btn-primary" id="btn-search" onclick="doSearch()">Cari Sekarang</button>
+      <div class="status-txt" id="search-status"></div>
+      <div id="results"></div>
+    </div>
+
+    <!-- CARD: Download by URL -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Download by URL</div>
+        <div class="res-trigger" id="triggerUrl">
+          <button class="res-btn" onclick="togglePopup('popupUrl')">
+            <span class="rainbow-text" id="labelUrl">HYPE v1.3</span>
+            <span class="arrow">▼</span>
+          </button>
+          <div class="res-popup" id="popupUrl">
+            <div class="res-option selected" onclick="pickRes('Url','HYPE v1.3',this)">
+              <span class="res-opt-title rainbow-text">HYPE v1.3</span>
+              <span class="res-opt-desc">Cocok untuk mengunduh video dengan resolusi tak terbatas 1080p+</span>
+            </div>
+            <div class="res-divider"></div>
+            <div class="res-option" onclick="pickRes('Url','720',this)">
+              <span class="res-opt-title">720p</span>
+              <span class="res-opt-desc">Kualitas standar HD</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMAT TOGGLE MP4 / MP3 -->
+      <div class="format-toggle" id="format-toggle" style="display:none; opacity:0; transition: opacity 0.35s ease;">
+        <button class="fmt-btn active-mp4" id="fmt-mp4" onclick="selectFormat('mp4')">
+          <span class="fmt-dot"></span> MP4
+        </button>
+        <button class="fmt-btn" id="fmt-mp3" onclick="selectFormat('mp3')">
+          <span class="fmt-dot"></span> MP3
+        </button>
+      </div>
+
+      <div class="input-wrapper">
+        <input id="dl-url" placeholder="tiktok/ig/facebook" type="text"/>
+        <span class="clear-btn" id="clear-dl-url" onclick="clearInput('dl-url')">✕</span>
+      </div>
+      <div id="url-preview-container"></div>
+      <button class="btn-primary" id="btn-dlurl" onclick="doDownloadUrl()">Download Langsung</button>
+      <div class="status-txt" id="url-status"></div>
+    </div>
+
+    <!-- MULTI PLATFORM CARD -->
+    <div class="audio-card">
+      <img src="IconB.png" alt="Multi Platform Downloader">
+      <div class="audio-card-content">
+        <div class="audio-card-title">✅ <span style="color: #4ade80;">AKTIF</span> · Multi Platform</div>
+        <div class="audio-card-desc">Download video MP4 & audio MP3 dari YouTube, TikTok, Instagram, dan Facebook — cepat, gratis, tanpa watermark.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== FEATURES SECTION ===== -->
+  <section class="features-section">
+
+    <h2 class="features-heading">Cepat, Gratis, Tanpa Batas</h2>
+    <p class="features-sub">Semua yang kamu butuhkan, gratis selamanya</p>
+
+    <div class="features-grid">
+
+      <div class="feat-card glow-blue">
+        <div class="feat-icon">⚡</div>
+        <div class="feat-title">HYPE Engine</div>
+        <div class="feat-desc">Teknologi unduh generasi baru — resolusi tak terbatas, kecepatan penuh.</div>
+      </div>
+
+      <div class="feat-card glow-purple">
+        <div class="feat-icon">✨</div>
+        <div class="feat-title">No Watermark</div>
+        <div class="feat-desc">Video bersih tanpa logo atau tanda air dari platform manapun.</div>
+      </div>
+
+      <div class="feat-card glow-green">
+        <div class="feat-icon">🎵</div>
+        <div class="feat-title">MP3/MP4 Extract</div>
+        <div class="feat-desc">Ekstrak audio langsung ke MP3 berkualitas tinggi dari video apapun.</div>
+      </div>
+
+      <div class="feat-card glow-amber">
+        <div class="feat-icon">🚫</div>
+        <div class="feat-title">TANPA IKLAN</div>
+        <div class="feat-desc">Langsung pakai tanpa daftar, tanpa akun, tanpa ribet.</div>
+      </div>
+
+    </div>
+
+    <div class="platform-badges">
+      <span class="plat-badge">
+        <span class="plat-dot" style="background:#000000;"></span>TikTok
+      </span>
+      <span class="plat-badge">
+        <span class="plat-dot" style="background:#ff0000;"></span>YouTube
+      </span>
+      <span class="plat-badge">
+        <span class="plat-dot" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);"></span>Instagram
+      </span>
+      <span class="plat-badge">
+        <span class="plat-dot" style="background:#1877f2;"></span>Facebook
+      </span>
+      <span class="plat-badge">
+        <span class="plat-dot" style="background:#1db954;"></span>Spotify
+      </span>
+    </div>
+
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="footer-name">zakdev_</div>
+        <div class="footer-ver">Vinder v2.0 · HYPE Engine</div>
+      </div>
+      <div class="footer-links">
+        <a class="footer-link" onclick="openFeedbackModal()">Feedback</a>
+        <a class="footer-link donate-link" onclick="openDonateModal()">zakdev</a>
+        <a class="footer-link" href="#" onclick="showChangelog(); return false;">Changelog</a>
+      </div>
+    </div>
+    <div class="footer-credit">
+      Dibuat dengan 🌟 oleh <span>zakdev_</span> · Gratis untuk semua orang
+    </div>
+  </footer>
+
+  <!-- ===== DOWNLOAD BUBBLES ===== -->
+  <div id="dl-container"></div>
+
+  <!-- ===== FAB GROUP (Donate + Feedback) ===== -->
+  <div class="fab-group">
+    <button class="fab-donate" onclick="openDonateModal()">
+      <span class="donate-icon">☕
+    </button>
+    <button class="fab-feedback" onclick="openFeedbackModal()" title="Kirim Saran">
+      ✉️
+    </button>
+  </div>
+
+  <!-- ===== FEEDBACK MODAL ===== -->
+  <div class="modal-overlay" id="feedback-modal" onclick="handleOverlayClick(event,'feedback-modal')">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">✉️ Kotak Saran</div>
+      <div class="modal-subtitle">Punya saran atau nemu bug? Kirim langsung ke Gmail gw — gw baca semua masukan!</div>
+
+      <div class="modal-label">Nama kamu</div>
+      <input class="modal-input" id="fb-name" placeholder="Nama / username kamu..." type="text"/>
+
+      <div class="modal-label">Pesan / Saran</div>
+      <textarea class="modal-input" id="fb-message" placeholder="Tulis saran, laporan bug, atau apapun..."></textarea>
+
+      <div class="modal-label">Screenshot Error (opsional)</div>
+      <div class="modal-upload-area" onclick="document.getElementById('fb-photo').click()" id="upload-area">
+        <div class="upload-icon">📸</div>
+        <p>Tap untuk upload foto error</p>
+      </div>
+      <input type="file" id="fb-photo" accept="image/*" style="display:none" onchange="handlePhotoPreview(event)">
+      <div id="photo-preview" style="display:none"></div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeFeedbackModal()">Batal</button>
+        <button class="btn-send" onclick="sendFeedback()">
+         Kirim via Gmail
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DONATE MODAL ===== -->
+  <div class="modal-overlay" id="donate-modal" onclick="handleOverlayClick(event,'donate-modal')">
+    <div class="donate-modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="donate-header">
+        <div class="donate-emoji">☕</div>
+        <div class="donate-title">Support ZakDev!</div>
+        <div class="donate-desc">Kalau Vinder bermanfaat buat lo,<br>traktir gw kopi biar semangat ngoding! 🔥</div>
+      </div>
+      <div class="donate-options">
+        <a class="donate-option" href="https://saweria.co/zakdev" target="_blank">
+                  <div class="donate-opt-icon" style="background:#1a1208;">🧡</div>
+          <div class="donate-opt-info">
+            <div class="donate-opt-name">Saweria</div>
+            <div class="donate-opt-desc">Traktir kopi lewat Saweria</div>
+          </div>
+          <span class="donate-opt-arrow">›</span>
+        </a>
+        <a class="donate-option" href="https://saweria.co/ZakdevComunity" target="_blank">
+          <div class="donate-opt-icon" style="background:#1a0808;">❤️</div>
+          <div class="donate-opt-info">
+            <div class="donate-opt-name">Trakteer</div>
+            <div class="donate-opt-desc">Support via Trakteer</div>
+          </div>
+          <span class="donate-opt-arrow">›</span>
+        </a>
+        
+
+      </div>
+      <div style="text-align:center; margin-top:20px; font-size:12px; color:var(--muted);">
+        Makasih udah support! 🙏
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /* ===== STATE ===== */
+  const resSelected = { Search: 'HYPE v1.3', Url: 'HYPE v1.3' };
+  let lastUrl = '';
+  let currentPreviewData = null;
+  let selectedFormat = 'mp4'; // 'mp4' or 'mp3'
+
+  /* ===== FORMAT TOGGLE ===== */
+  function selectFormat(fmt) {
+    selectedFormat = fmt;
+    const mp4Btn = document.getElementById('fmt-mp4');
+    const mp3Btn = document.getElementById('fmt-mp3');
+    mp4Btn.className = 'fmt-btn' + (fmt === 'mp4' ? ' active-mp4' : '');
+    mp3Btn.className = 'fmt-btn' + (fmt === 'mp3' ? ' active-mp3' : '');
+    // Reset preview on format switch
+    if (currentPreviewData) {
+      const btnDl = document.getElementById('btn-dlurl');
+      btnDl.textContent = fmt === 'mp3' ? '⬇Download MP3' : '⬇Download MP4';
+    }
+  }
+
+  /* ===== RESOLUTION POPUP ===== */
+  function togglePopup(popupId) {
+    const popup = document.getElementById(popupId);
+    const isOpen = popup.classList.contains('open');
+    document.querySelectorAll('.res-popup').forEach(p => p.classList.remove('open'));
+    if (!isOpen) popup.classList.add('open');
+  }
+
+  function pickRes(section, res, el) {
+    resSelected[section] = res;
+    const label = document.getElementById('label' + section);
+    label.innerText = res;
+    if (res.includes('HYPE')) {
+      label.classList.add('rainbow-text');
+    } else {
+      label.classList.remove('rainbow-text');
+    }
+    el.closest('.res-popup').querySelectorAll('.res-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    el.closest('.res-popup').classList.remove('open');
+  }
+
+  document.addEventListener('click', function(e) {
+    ['popupSearch','popupUrl'].forEach(id => {
+      const popup = document.getElementById(id);
+      if (popup && !popup.closest('.res-trigger').contains(e.target)) {
+        popup.classList.remove('open');
+      }
+    });
+  });
+
+  /* ===== CLEAR INPUT ===== */
+  function clearInput(id) {
+    const el = document.getElementById(id);
+    el.value = '';
+    el.focus();
+    toggleClearBtn(id);
+    if (id === 'dl-url') {
+      document.getElementById('url-preview-container').style.display = 'none';
+      document.getElementById('btn-dlurl').textContent = 'Download Langsung';
+      lastUrl = '';
+      currentPreviewData = null;
+      const fmtToggle = document.getElementById('format-toggle');
+      fmtToggle.style.opacity = '0';
+      setTimeout(() => { fmtToggle.style.display = 'none'; }, 350);
+    }
+  }
+
+  function toggleClearBtn(id) {
+    const el = document.getElementById(id);
+    const btn = document.getElementById('clear-' + id);
+    if (btn) btn.style.display = el.value ? 'block' : 'none';
+    if (id === 'dl-url' && el.value.startsWith('http')) {
+      setTimeout(() => autoPreview(el.value), 500);
+    } else if (id === 'dl-url' && !el.value) {
+      document.getElementById('url-preview-container').style.display = 'none';
+      document.getElementById('btn-dlurl').textContent = 'Download Langsung';
+      lastUrl = '';
+      currentPreviewData = null;
+      const fmtToggle = document.getElementById('format-toggle');
+      fmtToggle.style.opacity = '0';
+      setTimeout(() => { fmtToggle.style.display = 'none'; }, 350);
+    }
+  }
+
+  ['kw', 'filter', 'limit', 'dl-url'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => toggleClearBtn(id));
+  });
+
+  /* ===== AUTO PREVIEW ===== */
+  // Platform yang didukung — harus sinkron dengan SUPPORTED_PLATFORMS di backend
+  const SUPPORTED_HOSTS = [
+    'tiktok.com', 'vt.tiktok.com', 'vm.tiktok.com',
+    'youtube.com', 'youtu.be',
+    'instagram.com',
+    'facebook.com', 'fb.watch', 'fb.com',
+    'open.spotify.com',
+  ];
+
+  function isSupportedUrl(url) {
+    try {
+      const host = new URL(url).hostname.replace('www.', '');
+      return SUPPORTED_HOSTS.some(h => host === h || host.endsWith('.' + h));
+    } catch(e) { return false; }
+  }
+
+  function detectPlatform(url) {
+    try {
+      const host = new URL(url).hostname.replace('www.', '');
+      if (host.includes('tiktok.com')) return 'tiktok';
+      if (host.includes('youtube.com') || host === 'youtu.be') return 'youtube';
+      if (host.includes('instagram.com')) return 'instagram';
+      if (host.includes('facebook.com') || host.includes('fb.watch') || host.includes('fb.com')) return 'facebook';
+      if (host.includes('open.spotify.com')) return 'spotify';
+    } catch(e) {}
+    return 'unknown';
+  }
+
+  async function autoPreview(url) {
+    if (url === lastUrl) return;
+    // FIX: cek platform dulu sebelum hit API
+    // Bug lama: `!url.includes('tiktok.com') && !url.includes('http')` salah logika
+    // — Pinterest (https://pin.it/...) lolos karena ada 'http', lalu backend return HTML
+    if (!url.startsWith('http') || !isSupportedUrl(url)) {
+      document.getElementById('url-preview-container').style.display = 'none';
+      document.getElementById('btn-dlurl').disabled = false;
+      document.getElementById('btn-dlurl').textContent = 'Download Langsung';
+      // Sembunyiin format toggle kalau URL invalid/kosong
+      const fmtToggle = document.getElementById('format-toggle');
+      fmtToggle.style.opacity = '0';
+      setTimeout(() => { if (fmtToggle.style.opacity === '0') fmtToggle.style.display = 'none'; }, 350);
+      if (url.startsWith('http') && !isSupportedUrl(url)) {
+        const statusEl = document.getElementById('url-status');
+        statusEl.textContent = '❌ Platform tidak didukung. Gunakan link TikTok, YouTube, Instagram, Facebook, atau Spotify.';
+        statusEl.className = 'status-txt err';
+      }
+      return;
+    }
+    document.getElementById('url-status').textContent = '';
+    lastUrl = url;
+
+    const container = document.getElementById('url-preview-container');
+    const btnDl = document.getElementById('btn-dlurl');
+
+    container.style.display = 'block';
+    container.innerHTML = '<div style="font-size:11px; color:var(--muted); padding:8px 0;">📡 Membedah link...</div>';
+    btnDl.disabled = true;
+    btnDl.textContent = 'Sedang diproses...';
+
+    try {
+      const platform = detectPlatform(url);
+      let data;
+
+      if (platform === 'spotify') {
+        // ── SPOTIFY: pakai /api/spotify_info ──
+        const resp = await fetch('/api/spotify_info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        data = await resp.json();
+      } else if (platform === 'tiktok') {
+        // ── TIKTOK: pakai /api/download_url (TikWM, cepat) ──
+        const resp = await fetch('/api/download_url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, resolution: resSelected['Url'] })
+        });
+        data = await resp.json();
+      } else {
+        // ── YOUTUBE / INSTAGRAM / FACEBOOK: pakai /api/mp4_info ──
+        const resp = await fetch('/api/mp4_info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        data = await resp.json();
+        if (data.status === 'success') {
+          data.size   = data.size  || 'N/A';
+          data.play   = url;
+          data.hdplay = url;
+        }
+      }
+
+      if (data.status === 'success') {
+        currentPreviewData = data;
+
+        const fmtToggle  = document.getElementById('format-toggle');
+        const btnMp4     = document.getElementById('fmt-mp4');
+        const btnMp3     = document.getElementById('fmt-mp3');
+
+        if (platform === 'spotify') {
+          // ── UI SPOTIFY: sembunyiin MP4, MP3 melebar full, auto pilih MP3 ──
+          btnMp4.style.display = 'none';
+          btnMp3.style.flex    = '1 1 100%';
+          selectFormat('mp3');
+          fmtToggle.style.display = 'flex';
+          requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
+        } else {
+          // ── UI NORMAL: kembalikan MP4 kalau sebelumnya Spotify ──
+          btnMp4.style.display = '';
+          btnMp3.style.flex    = '1';
+          fmtToggle.style.display = 'flex';
+          requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
+        }
+
+        // ── Normalisasi field frontend ──
+        const platformLabels = {
+          tiktok: 'TikTok', youtube: 'YouTube',
+          instagram: 'Instagram', facebook: 'Facebook', spotify: 'Spotify'
+        };
+
+        let authorLabel = data.author || '';
+        if (!authorLabel || /https?:\/\/|www\.|\.(com|net|org|id)/.test(authorLabel)) {
+          authorLabel = platformLabels[platform] || platform;
+        }
+
+        let durLabel  = (data.duration && data.duration !== '0m00s' && data.duration !== '-')
+          ? data.duration : (platform === 'facebook' ? 'Time' : '-');
+        let sizeLabel = (data.size && data.size !== 'N/A') ? data.size : (platform === 'facebook' ? 'Size' : 'N/A');
+
+        const platformIcons = {
+          youtube:   'https://www.youtube.com/favicon.ico',
+          instagram: 'https://www.instagram.com/favicon.ico',
+          facebook:  'https://www.facebook.com/favicon.ico',
+          tiktok:    'https://www.tiktok.com/favicon.ico',
+          spotify:   'https://open.spotify.com/favicon.ico',
+        };
+
+        const rawThumb = data.cover || '';
+        const thumbSrc = (platform === 'instagram' && rawThumb)
+          ? '/api/thumb?url=' + encodeURIComponent(rawThumb)
+          : (rawThumb || platformIcons[platform] || '');
+
+        // Label khusus Spotify: ganti ⏱ & 💾 jadi badge hijau platform
+        const metaExtra = platform === 'spotify'
+          ? `${data.duration ? `<span class="meta-tag">⏱ ${data.duration}</span>` : ''}<span class="meta-tag" style="color:#1db954; border-color:#1db954;">🎵 Spotify</span>`
+          : `<span class="meta-tag">⏱ ${durLabel}</span><span class="meta-tag">💾 ${sizeLabel}</span>`;
+
+        // Spotify: badge 👤 hanya tampil kalau author beneran ada (bukan kosong)
+        const authorBadge = (platform === 'spotify')
+          ? (authorLabel && authorLabel !== 'Spotify' ? `<span class="meta-tag">👤 ${authorLabel}</span>` : '')
+          : `<span class="meta-tag">👤 ${authorLabel}</span>`;
+
+        container.innerHTML = `
+          <div class="preview-card">
+            <img src="${thumbSrc}" class="preview-thumb"
+              onerror="this.src='${platformIcons[platform] || ''}'; this.onerror=null;">
+            <div class="preview-info">
+              <div class="preview-title">${data.title || (platform === 'spotify' ? 'Lagu Spotify' : 'Video')}</div>
+              <div class="preview-meta">
+                ${authorBadge}
+                ${metaExtra}
+              </div>
+            </div>
+            <div style="color:var(--accent); font-size:18px;">⬇️</div>
+          </div>
+        `;
+        btnDl.disabled = false;
+        btnDl.textContent = selectedFormat === 'mp3' ? '⬇ Download MP3' : '⬇ Download MP4';
+
+      } else {
+        container.style.display = 'none';
+        btnDl.disabled = false;
+        btnDl.textContent = 'Download Langsung';
+        currentPreviewData = null;
+        // Kembalikan tombol normal kalau error
+        document.getElementById('fmt-mp4').style.display = '';
+        document.getElementById('fmt-mp3').style.flex    = '1';
+        const fmtToggle = document.getElementById('format-toggle');
+        fmtToggle.style.display = 'flex';
+        requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
+      }
+    } catch(e) {
+      container.style.display = 'none';
+      btnDl.disabled = false;
+      btnDl.textContent = 'Download Langsung';
+      currentPreviewData = null;
+      document.getElementById('fmt-mp4').style.display = '';
+      document.getElementById('fmt-mp3').style.flex    = '1';
+      const fmtToggle = document.getElementById('format-toggle');
+      fmtToggle.style.display = 'flex';
+      requestAnimationFrame(() => { fmtToggle.style.opacity = '1'; });
+    }
+  }
+
+  /* ===== BACKGROUND MP3 SYSTEM ===== */
+  // Pakai /api/mp3_progress (SSE) + /api/get_mp3_file sesuai backend
+
+  async function startMp3Background(url, title) {
+    const bubble = createBubble(title, true);
+    const filename = '[Vinder].' + title.replace(/[\/:\*?"<>|]/g, '').replace(/[#@]\S*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) + '.mp3';
+
+    // POST ke server - cover diambil dari frame tengah video di server
+    try {
+      const resp = await fetch('/api/fast_mp3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, title }),
+      });
+      // FIX: baca error text dari server supaya bisa ditampilkan ke bubble
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => 'Server error ' + resp.status);
+        throw new Error(errText || 'Server error ' + resp.status);
+      }
+
+      // Langsung eksekusi download begitu response datang - no delay
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+      bubble.setSuccess();
+    } catch (e) {
+      // FIX: tampilkan error ke bubble (sebelumnya hanya console.error, bubble hilang tanpa feedback)
+      console.error('[MP3] Download error:', e);
+      bubble.setError(e.message || 'Gagal memproses audio, coba lagi ya.');
+    }
+  }
+
+  /* ===== SPOTIFY BACKGROUND SYSTEM ===== */
+  // Scrape metadata Spotify → search YouTube → download MP3 192k via /api/spotify_mp3
+
+  async function startSpotifyBackground(url, title) {
+    const bubble = createBubble(title, true);
+    const filename = '[Vinder].' + title.replace(/[\/:\*?"<>|]/g, '').replace(/[#@]\S*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) + '.mp3';
+
+    try {
+      const resp = await fetch('/api/spotify_mp3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, title }),
+      });
+      if (!resp.ok) throw new Error('Server error ' + resp.status);
+
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+      bubble.setSuccess();
+    } catch (e) {
+      bubble.setError('Gagal download, coba lagi ya.');
+      console.error('[SPOTIFY] Download error:', e);
+    }
+  }
+
+  /* ===== DOWNLOAD BUBBLE ===== */
+  function createBubble(title, isBg) {
+    const wrap = document.getElementById('dl-container');
+    const el = document.createElement('div');
+    el.className = 'dl-bubble';
+    const barId = 'bar-' + Date.now();
+    const subText = isBg ? 'Sedang diproses, harap tunggu...' : 'Menyiapkan unduhan...';
+    const barClass = isBg ? 'dl-progress-bar indeterminate' : 'dl-progress-bar';
+    el.innerHTML = `
+      <div class="dl-bubble-icon loading">${isBg ? '🎵' : '⬇️'}</div>
+      <div class="dl-bubble-text">
+        <div class="dl-bubble-label"></div>
+        <div class="dl-bubble-sub">${subText}</div>
+        <div class="dl-progress"><div class="${barClass}" id="${barId}"></div></div>
+      </div>
+      <button class="dl-close" onclick="closeBubble(this)">✕</button>
+    `;
+    el.querySelector('.dl-bubble-label').textContent = title;
+    wrap.appendChild(el);
+    const bar = el.querySelector('#' + barId);
+    const sub = el.querySelector('.dl-bubble-sub');
+
+    // Untuk isBg: hanya satu pesan soft setelah jeda singkat, lalu biarkan shimmer berjalan jujur
+    if (isBg) {
+      const t = setTimeout(() => {
+        if (!el.isConnected) return;
+        sub.textContent = 'Lagi diproses di server, sebentar ya...';
+      }, 2500);
+      el._stepTimers = [t];
+    }
+
+    return {
+      updateProgress(p, msg) {
+        if (!isBg) {
+          bar.classList.remove('indeterminate');
+          bar.style.width = p + '%';
+          sub.textContent = msg || ('Mengunduh... ' + Math.round(p) + '%');
+        }
+      },
+      setSuccess() {
+        (el._stepTimers || []).forEach(t => clearTimeout(t));
+        el.querySelector('.dl-bubble-icon').textContent = '✅';
+        el.querySelector('.dl-bubble-icon').className = 'dl-bubble-icon success';
+        bar.classList.remove('indeterminate');
+        bar.style.transition = 'width 0.3s ease';
+        bar.style.width = '100%';
+        bar.className = 'dl-progress-bar done';
+        sub.textContent = 'File siap — unduhan dimulai!';
+        setTimeout(() => fadeOutBubble(el), 4000);
+      },
+      setError(msg) {
+        (el._stepTimers || []).forEach(t => clearTimeout(t));
+        el.querySelector('.dl-bubble-icon').textContent = '❌';
+        el.querySelector('.dl-bubble-icon').className = 'dl-bubble-icon error';
+        bar.classList.remove('indeterminate');
+        bar.className = 'dl-progress-bar fail';
+        sub.textContent = msg || 'Oops, ada yang salah. Coba lagi ya.';
+      }
+    };
+  }
+
+  function closeBubble(btn) { fadeOutBubble(btn.closest('.dl-bubble')); }
+  function fadeOutBubble(el) {
+    if (!el) return;
+    el.classList.add('fade-out');
+    setTimeout(() => el.remove(), 400);
+  }
+
+  function handleRealDownload(dUrl, title) {
+    const bubble = createBubble(title, true);
+    try {
+      const a = document.createElement('a');
+      a.href = dUrl;
+      a.target = '_blank';
+      const ext = selectedFormat === 'mp3' ? '.mp3' : '.mp4';
+      a.download = title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + ext;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      bubble.setSuccess();
+    } catch (e) {
+      bubble.setError(e.message);
+    }
+  }
+
+  function getDownloadUrl(v, resolution) {
+    let vUrl = (resolution === 'HYPE v1.3') ? (v.hdplay || v.play) : (v.play || v.hdplay);
+    if (!vUrl) return '';
+    const t = new Date().getTime();
+    return `/api/get_video?url=${encodeURIComponent(vUrl)}&title=${encodeURIComponent(v.title)}&mode=${encodeURIComponent(resolution)}&format=${selectedFormat}&nocache=${t}`;
+  }
+
+  /* ===== PLATFORM PICKER (Cari Video) ===== */
+  function togglePlatformPopup() {
+    const popup = document.getElementById('platformPopup');
+    popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function pickPlatform(name, el) {
+    document.getElementById('platformLabel').textContent = name;
+    document.getElementById('platformLabel').style.color = '#2563eb';
+    const items = document.querySelectorAll('#platformPopup div[onclick]');
+    items.forEach(function(item) { item.style.color = '#777'; });
+    el.style.color = '#2563eb';
+    document.getElementById('platformPopup').style.display = 'none';
+  }
+
+  document.addEventListener('click', function(e) {
+    const trigger = document.getElementById('platformTrigger');
+    if (trigger && !trigger.contains(e.target)) {
+      document.getElementById('platformPopup').style.display = 'none';
+    }
+  });
+
+  /* ===== SEARCH ===== */
+  async function doSearch() {
+    const kw = document.getElementById('kw').value.trim();
+    if (!kw) return;
+    const btn = document.getElementById('btn-search');
+    const status = document.getElementById('search-status');
+    const resultsEl = document.getElementById('results');
+    const resolution = resSelected['Search'];
+    btn.disabled = true;
+    btn.textContent = 'Mencari...';
+    status.textContent = 'Menghubungi server...';
+    resultsEl.innerHTML = '';
+    try {
+      const resp = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword: kw,
+          limit: parseInt(document.getElementById('limit').value) || 5,
+          filter: (() => { const v = document.getElementById('filter').value.trim(); return v ? `> ${v}s` : ''; })(),
+          resolution
+        })
+      });
+      const data = await resp.json();
+      if (data.status !== 'success') throw new Error(data.msg);
+      status.textContent = `${data.data.length} video ditemukan`;
+      status.className = 'status-txt ok';
+      data.data.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'video-item';
+        const isMp3 = selectedFormat === 'mp3';
+        div.innerHTML = `
+          <img src="${v.cover}" class="video-thumb">
+          <div class="video-info">
+            <div class="video-title">${v.title}</div>
+            <div class="video-meta">
+              <span class="meta-tag">⏱ ${v.duration}</span>
+              <span class="meta-tag">💾 ${v.size}</span>
+            </div>
+            <button class="btn-dl" onclick="window.open('${v.hdplay||v.play}', '_blank')">
+              ▶ Preview
+            </button>
+            <button class="btn-dl" onclick="handleSearchDownload(this,'${encodeURIComponent(v.hdplay||v.play)}','${encodeURIComponent(v.title)}','${encodeURIComponent(v.play)}')">
+              ⬇ Download ${selectedFormat.toUpperCase()}
+            </button>
+          </div>
+        `;
+        resultsEl.appendChild(div);
+      });
+    } catch (e) {
+      status.textContent = 'Error: ' + e.message;
+      status.className = 'status-txt err';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Cari Sekarang';
+    }
+  }
+
+  function handleSearchDownload(btnEl, encHdplay, encTitle, encPlay) {
+    const title      = decodeURIComponent(encTitle);
+    const hdplay     = decodeURIComponent(encHdplay);
+    const play       = decodeURIComponent(encPlay);
+    const resolution = resSelected['Search'];
+
+    // Card "Cari Video" selalu MP4, tidak terpengaruh toggle format
+    const t    = Date.now();
+    const vUrl = resolution === 'HYPE v1.3' ? hdplay : play;
+    const dUrl = `/api/get_video?url=${encodeURIComponent(vUrl)}&title=${encodeURIComponent(title)}&mode=${encodeURIComponent(resolution)}&nocache=${t}`;
+    handleRealDownload(dUrl, title);
+  }
+
+  /* ===== DOWNLOAD URL ===== */
+  async function doDownloadUrl() {
+    const url = document.getElementById('dl-url').value.trim();
+    if (!url) return;
+
+    // Validasi platform yang didukung
+    if (!isSupportedUrl(url)) {
+      const statusEl = document.getElementById('url-status');
+      statusEl.textContent = '❌ Platform tidak didukung. Gunakan link TikTok, YouTube, Instagram, Facebook, atau Spotify.';
+      statusEl.className = 'status-txt err';
+      return;
+    }
+
+    const resolution = resSelected['Url'];
+    const platform   = detectPlatform(url);
+
+    // ── SPOTIFY: selalu MP3, hit /api/spotify_mp3 ──
+    if (platform === 'spotify') {
+      const title = (currentPreviewData && lastUrl === url)
+        ? currentPreviewData.title
+        : 'Spotify Audio';
+      startSpotifyBackground(url, title);
+      return;
+    }
+
+    // ── MP3 mode (non-Spotify) → background job langsung ──
+    if (selectedFormat === 'mp3') {
+      const title = (currentPreviewData && lastUrl === url)
+        ? currentPreviewData.title
+        : (url.split('/').pop() || 'audio');
+      startMp3Background(url, title);
+      return;
+    }
+
+    // ── MP4 mode ──
+    const btn = document.getElementById('btn-dlurl');
+
+    if (platform === 'tiktok') {
+      // TikTok: pakai flow lama via /api/get_video (stream langsung TikWM)
+      if (currentPreviewData && lastUrl === url) {
+        const dUrl = getDownloadUrl(currentPreviewData, resolution);
+        handleRealDownload(dUrl, currentPreviewData.title);
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+      try {
+        const resp = await fetch('/api/download_url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, resolution })
+        });
+        const data = await resp.json();
+        if (data.status === 'success') {
+          const dUrl = getDownloadUrl(data, resolution);
+          handleRealDownload(dUrl, data.title);
+        } else {
+          throw new Error(data.msg);
+        }
+      } catch (e) {
+        const bubble = createBubble('URL Error', false);
+        bubble.setError(e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = selectedFormat === 'mp3' ? '⬇ Download MP3' : '⬇ Download MP4';
+      }
+    } else {
+      // YouTube / Instagram / Facebook: pakai /api/download_mp4
+      const title = (currentPreviewData && lastUrl === url)
+        ? currentPreviewData.title
+        : platform + ' video';
+      const bubble = createBubble(title, true);
+      const quality = resolution === 'HYPE v1.3' ? 'best' : 'sd';
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+      try {
+        const resp = await fetch('/api/download_mp4', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, quality, title })
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ msg: 'Server error ' + resp.status }));
+          throw new Error(err.msg || 'Gagal download');
+        }
+        const blob = await resp.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = '[Vinder].' + title.replace(/[\/:\*?"<>|]/g,'').slice(0,60) + '.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+        bubble.setSuccess();
+      } catch(e) {
+        bubble.setError(e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = selectedFormat === 'mp3' ? '⬇ Download MP3' : '⬇ Download MP4';
+      }
+    }
+  }
+
+  /* ===== KEYBOARD SHORTCUTS ===== */
+  document.getElementById('kw').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+  document.getElementById('dl-url').addEventListener('keydown', e => { if (e.key === 'Enter') doDownloadUrl(); });
+
+  /* ===== MODAL HELPERS ===== */
+  function handleOverlayClick(e, modalId) {
+    if (e.target === document.getElementById(modalId)) {
+      document.getElementById(modalId).classList.remove('open');
+    }
+  }
+
+  /* ===== FEEDBACK MODAL ===== */
+  function openFeedbackModal() {
+    document.getElementById('feedback-modal').classList.add('open');
+  }
+  function closeFeedbackModal() {
+    document.getElementById('feedback-modal').classList.remove('open');
+  }
+
+  function handlePhotoPreview(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const previewDiv = document.getElementById('photo-preview');
+      document.getElementById('upload-area').style.display = 'none';
+      previewDiv.style.display = 'flex';
+      previewDiv.innerHTML = `
+        <div class="upload-preview">
+          <img src="${e.target.result}" alt="preview">
+          <span>${file.name}</span>
+          <button onclick="removePhoto()">✕</button>
+        </div>
+      `;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removePhoto() {
+    document.getElementById('fb-photo').value = '';
+    document.getElementById('photo-preview').style.display = '';
+    document.getElementById('upload-area').style.display = 'block';
+  }
+
+  function sendFeedback() {
+    const name = document.getElementById('fb-name').value.trim() || 'Anonymous';
+    const message = document.getElementById('fb-message').value.trim();
+    if (!message) {
+      document.getElementById('fb-message').focus();
+      return;
+    }
+    const subject = encodeURIComponent(`[Vinder Feedback] dari ${name}`);
+    const body = encodeURIComponent(`Dari: ${name}\n\nPesan:\n${message}\n\n---\nDikirim via Vinder v1.2`);
+    window.open(`mailto:zakdeveloper632@gmail.com?subject=${subject}&body=${body}`, '_blank');
+    closeFeedbackModal();
+  }
+
+  /* ===== DONATE MODAL ===== */
+  function openDonateModal() {
+    document.getElementById('donate-modal').classList.add('open');
+  }
+  function closeDonateModal() {
+    document.getElementById('donate-modal').classList.remove('open');
+  }
+
+  /* ===== CHANGELOG ===== */
+  function showChangelog() {
+    const log = [
+      { v: 'v2.0', note: 'Features section, platform badges & footer' },
+      { v: 'v1.3', note: 'HYPE Engine — resolusi tak terbatas' },
+      { v: 'v1.2', note: 'MP3 Extract & format toggle' },
+      { v: 'v1.0', note: 'Rilis perdana Vinder' },
+    ];
+    const body = log.map(l => `${l.v}  —  ${l.note}`).join('\n');
+    alert('📋 Changelog\n\n' + body);
+  }
+
+  /* ===== HARD REFRESH ===== */
+  function triggerHardRefresh() {
+    localStorage.clear();
+    sessionStorage.clear();
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set('refresh', Date.now());
+    window.location.replace(url.toString());
+  }
+  </script>
+</body>
+</html>
